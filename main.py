@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QSystemTrayIcon, QMenu, 
@@ -5,7 +6,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout, QMessageBox, QSplitter, QFrame
 )
 from PyQt6.QtGui import QIcon, QPixmap, QAction, QMovie, QTextCursor, QColor, QTextCharFormat, QFont, QImage, QPainter
-from PyQt6.QtCore import Qt, QPoint, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, QThread, pyqtSignal, QCoreApplication
 
 import zhipu
 from settingwindow import CustomDialog,FontManager
@@ -20,7 +21,11 @@ class AIWorker(QThread):
 
     def run(self):
         try:
-            reply = zhipu.get_ai_reply_sync(self.messages)
+            # 使用异步方式获取AI回复
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            reply = loop.run_until_complete(zhipu.get_ai_reply(self.messages))
+            loop.close()
             self.finished.emit(reply)
         except Exception as e:
             self.error.emit(str(e))
