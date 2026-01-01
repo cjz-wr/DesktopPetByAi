@@ -9,7 +9,7 @@ from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMet
                          QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
 import zhipu
 
-
+import toVoice
 
 class AIWorker(QThread):
     """AI工作线程"""
@@ -218,10 +218,14 @@ class ChatWidget(QWidget):
         # 添加AI回复
         self.add_message("ICAT", reply, is_user=False)
         
+        
         # 保存对话
         messages = zhipu.load_conversation("default")
         messages.append({"role": "assistant", "content": reply})
         zhipu.save_conversation("default", messages)
+
+        # 异步输出音频
+        toVoice.TextToSpeech().speak_async(reply)
         
         # 重新启用发送按钮
         self.send_button.setEnabled(True)
@@ -771,7 +775,7 @@ class VerticalTabWidget(QWidget):
         content_label = QLabel("""
             <p style='color: black;'><b>版本信息：</b> v1.0.0</p>
             <p style='color: black;'><b>开发者：</b> CJZ-WR</p>
-            <p style='color: black;'><b>如有问题请提issues：</b> https://github.com/cjz-wr/DesktopPet/issues</p>
+            <p style='color: black;'><b>如有问题请提issues：</b> https://github.com/cjz-wr/DesktopPetByAi/issues</p>
             <p style='color: black;'><b>使用说明：</b></p>
             <ul style='color: black;'>
                 <li>在设置页面可以配置背景图片</li>

@@ -8,6 +8,9 @@ import re
 import subprocess
 import html  # 用于处理HTML实体转义
 
+# 导入12306 MCP客户端
+from mcp_12306_client import MCP12306Client
+
 try:
     # 从demo_setting.json加载配置
     with open("demo_setting.json", "r", encoding="utf-8") as f:
@@ -23,9 +26,8 @@ except FileNotFoundError:
 # 注意：API_KEY和MODEL现在从demo_setting.json加载
 # 如果需要手动设置，请修改demo_setting.json文件
 
-
-
 client = ZhipuAI(api_key=API_KEY)
+mcp_client = MCP12306Client()  # 初始化12306 MCP客户端
 
 _save_locks = {}
 def _get_lock(identity):
@@ -43,8 +45,7 @@ def load_gif():
                 if entry.is_file():
                     GifList.append({
                         "name": entry.name,
-                        #注释掉是为了提高ai的识别率
-                        # "path": os.path.join(folder_path, entry.name)
+                        "path": os.path.join(folder_path, entry.name)
                     })
     except FileNotFoundError:
         print(f"文件夹 '{folder_path}' 不存在。")
@@ -85,7 +86,14 @@ def load_conversation(identity="default"):
     )
     respon = "你叫丫丫，18岁女生，是个人,性格有趣且是否热情，回复要简短自然带点幽默。你在windows聊天,是一个windows系统助手。你可以使用gif表达情感。注意：你所有的回答中都必须包含一个gif文件，且只能有这个。你还须了解你可以使用的gif文件。"
     HowUseGif = "使用gif的格式为[GIF:文件名],例如[GIF:走路]"
-    return [{"role": "system", "content": f"{respon},{use_cmd},{open_app},{HowUseGif},可用的gif有{GifList}"}]
+    mcp_function = (
+        "你可以帮助用户查询12306火车票信息。当用户需要查询火车票时，使用以下格式："
+        "[MCP_12306:出发地|目的地|日期|车次类型]"
+        "其中车次类型可以是G(高铁/城际),D(动车),Z(直达特快),T(特快),K(快速),O(其他),F(复兴号),S(智能动车组)的组合，或者留空表示所有类型。"
+        "例如: [MCP_12306:广州|北京|2025-10-10|G] 表示查询2025年10月10日从广州到北京的高铁票。"
+        "日期也可以使用相对日期，如今天、明天、后天等。"
+    )
+    return [{"role": "system", "content": f"{respon},{use_cmd},{open_app},{HowUseGif},{mcp_function},可用的gif有{GifList}"}]
 
 def save_conversation(identity, messages):
     filename = f"ai_memory/memory_{identity}.json"
@@ -109,6 +117,56 @@ def write_code_file(file_path, code_content):
         return "检测到非法字符，请检查输入内容是否包含特殊符号（如\\uXXX）"
     except Exception as e:
         return f"写入文件失败: {e}"
+
+def parse_date(date_str):
+    """解析日期字符串，支持相对日期"""
+    import datetime
+    today = datetime.date.today()
+    
+    if date_str == "今天":
+        return today.strftime("%Y-%m-%d")
+    elif date_str == "明天":
+        return (today + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    elif date_str == "后天":
+        return (today + datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+    else:
+        # 尝试解析为标准格式 YYYY-MM-DD
+        try:
+            datetime.datetime.strptime(date_str, "%Y-%m-%d")
+            return date_str
+        except ValueError:
+            # 如果无法解析，则默认为今天
+            return today.strftime("%Y-%m-%d")
+
+def handle_mcp_12306_command(command_str):
+    """处理12306查询命令"""
+    try:
+        parts = command_str.split("|")
+        if len(parts) < 3:
+            return "参数不足，请按格式提供：出发地|目的地|日期|车次类型"
+        
+        from_city = parts[0]
+        to_city = parts[1]
+        date_str = parts[2]
+        train_type = parts[3] if len(parts) > 3 else ""
+        
+        # 解析日期
+        parsed_date = parse_date(date_str)
+        
+        # 获取车站代码
+        station_codes = mcp_client.get_station_code_of_citys(f"{from_city}|{to_city}")
+        if from_city not in station_codes or to_city not in station_codes:
+            return f"无法找到车站代码：{from_city} 或 {to_city}"
+        
+        from_station_code = station_codes[from_city]["station_code"]
+        to_station_code = station_codes[to_city]["station_code"]
+        
+        # 查询车票
+        tickets = mcp_client.get_tickets(parsed_date, from_station_code, to_station_code, train_type)
+        return tickets
+        
+    except Exception as e:
+        return f"查询12306车票信息失败: {str(e)}"
 
 def get_ai_reply_sync(messages):
     """同步方式获取AI回复,返回字符串。自动处理[SEARCH_MCP:xxx]指令"""
@@ -155,10 +213,27 @@ def get_ai_reply_sync(messages):
             # 检查是否包含 [USE_cmd:xxx]
             use_cmd_pattern = r"\[USE_cmd:(.+?)\]"
             match = re.search(use_cmd_pattern, reply)
-
-
             
-            if match:
+            # 检查是否包含 [MCP_12306:xxx]
+            mcp_12306_pattern = r"\[MCP_12306:(.+?)\]"
+            mcp_match = re.search(mcp_12306_pattern, reply)
+
+            if mcp_match:
+                keyword = mcp_match.group(1).strip()
+                # 处理12306查询
+                result = handle_mcp_12306_command(keyword)
+                # 将查询结果添加到对话历史中，而不是直接返回
+                messages.append({"role": "assistant", "content": f"[MCP_12306:{keyword}]结果：{result}"})
+                
+                # 再次请求AI，让它基于查询结果进行回复
+                response2 = client.chat.completions.create(
+                    model=MODEL,
+                    messages=messages
+                )
+                if hasattr(response2, "choices") and response2.choices:
+                    return response2.choices[0].message.content
+                return "AI接口无有效回复(二次)"
+            elif match:
                 keyword = match.group(1).strip()
                 
                 # 匹配写入代码文件的特殊指令
