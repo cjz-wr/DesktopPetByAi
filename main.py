@@ -1,5 +1,5 @@
 import asyncio
-import sys
+import sys,os
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QSystemTrayIcon, QMenu, 
     QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox, QWidget, QPushButton, QScrollArea,
@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QIcon, QPixmap, QAction, QMovie, QTextCursor, QColor, QTextCharFormat, QFont, QImage, QPainter
 from PyQt6.QtCore import Qt, QPoint, QThread, pyqtSignal, QCoreApplication
 
-import zhipu
+import zhipu as zhipu
 from settingwindow import CustomDialog,FontManager
 
 class AIWorker(QThread):
@@ -129,6 +129,17 @@ class ChatDialog(QDialog):
         
         # 加载历史对话
         # self.load_conversation()
+
+
+        #检测相关配置文件是否存在
+        if not os.path.exists("demo_setting.json"):
+            with open("demo_setting.json", "w", encoding="utf-8") as f:
+                f.write('{"gif": "啦啦啦.gif"}')
+            print("已创建demo_setting.json文件")
+        #检测ai_memory文件夹是否存在
+        if not os.path.exists("ai_memory"):
+            os.mkdir("ai_memory")
+            print("已创建ai_memory文件夹")
     
     def load_conversation(self):
         """加载历史对话并显示在聊天区域"""
