@@ -428,7 +428,7 @@ class VerticalTabWidget(QWidget):
         # 创建并注册标签
         help_label = QLabel("<h1 style='color: black;'>帮助与关于</h1>")
         content_label = QLabel("""
-            <p style='color: black;'><b>版本信息：</b> v2.0.0</p>
+            <p style='color: black;'><b>版本信息：</b> v2.1.5</p>
             <p style='color: black;'><b>开发者：</b> CJZ-WR</p>
             <p style='color: black;'><b>如有问题请提issues：</b> https://github.com/cjz-wr/DesktopPetByAi/issues</p>
             <p style='color: black;'><b>使用说明：</b></p>

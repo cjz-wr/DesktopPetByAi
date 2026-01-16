@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DesktopPetByAi - 安装包下载</title>
+    
+    <!-- 外部CSS文件 -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- 外部库 -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9f0',
+                            100: '#dbf2db',
+                            200: '#bae4ba',
+                            300: '#8cd08c',
+                            400: '#5ab35a',
+                            500: '#4CAF50',
+                            600: '#3d9c41',
+                            700: '#338336',
+                            800: '#2d682f',
+                            900: '#275529',
+                        },
+                        secondary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#1a73e8',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        accent: {
+                            50: '#fef2f2',
+                            100: '#fee2e2',
+                            200: '#fecaca',
+                            300: '#fca5a5',
+                            400: '#f87171',
+                            500: '#ef4444',
+                            600: '#ea4335',
+                            700: '#dc2626',
+                            800: '#b91c1c',
+                            900: '#991b1b',
+                        },
+                        dark: '#1f2937',
+                        light: '#f8fafc',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'fade-in': 'fadeIn 0.8s ease-out forwards',
+                        'slide-up': 'slideUp 0.6s ease-out forwards',
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                        'gradient-x': 'gradientX 15s ease infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(30px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        gradientX: {
+                            '0%, 100%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        'medium': '0 10px 40px rgba(0, 0, 0, 0.12)',
+                        'hard': '0 20px 60px rgba(0, 0, 0, 0.15)',
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-dark font-sans">
+    <!-- 导航栏 -->
+    <header class="glass-effect sticky top-0 z-50 shadow-soft transition-all duration-300 backdrop-blur-md bg-white/80">
+        <div class="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="relative">
+                    <i class="fa fa-robot text-primary-500 text-2xl md:text-3xl animate-pulse-slow"></i>
+                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-accent-500 rounded-full animate-ping opacity-75"></div>
+                </div>
+                <h1 class="text-xl md:text-2xl font-bold text-gradient">DesktopPetByAi</h1>
+            </div>
+            <nav class="hidden md:flex space-x-8">
+                <a href="index.html" class="text-gray-700 hover:text-primary-500 transition-all duration-300 relative group flex items-center">
+                    <i class="fa fa-home mr-2"></i> 首页
+                    <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary-500 group-hover:w-full transition-all duration-300"></span>
+                </a>
+                <a href="#download" class="text-gray-700 hover:text-primary-500 transition-all duration-300 relative group">
+                    下载安装包
+                    <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary-500 group-hover:w-full transition-all duration-300"></span>
+                </a>
+                <a href="#instructions" class="text-gray-700 hover:text-primary-500 transition-all duration-300 relative group">
+                    安装说明
+                    <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary-500 group-hover:w-full transition-all duration-300"></span>
+                </a>
+                <a href="#faq" class="text-gray-700 hover:text-primary-500 transition-all duration-300 relative group">
+                    常见问题
+                    <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary-500 group-hover:w-full transition-all duration-300"></span>
+                </a>
+            </nav>
+            <div class="flex items-center space-x-4">
+                <a href="https://github.com/cjz-wr/DesktopPetByAi" target="_blank" class="text-dark hover:text-primary-500 transition-all duration-300 transform hover:scale-110">
+                    <div class="relative">
+                        <i class="fa fa-github text-xl md:text-2xl"></i>
+                        <div class="absolute -inset-2 bg-gray-100 rounded-full opacity-0 hover:opacity-100 transition-opacity duration-300 -z-10"></div>
+                    </div>
+                </a>
+                <button id="mobile-menu-button" class="md:hidden text-dark hover:text-primary-500 transition-all duration-300 p-2 -mr-2">
+                    <i class="fa fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 移动端菜单 -->
+        <div id="mobile-menu" class="md:hidden bg-white/90 backdrop-blur-md shadow-medium absolute top-full left-0 right-0 hidden transition-all duration-300 z-50">
+            <div class="px-4 py-6 space-y-4">
+                <a href="index.html" class="block py-2 text-gray-700 hover:text-primary-500 transition-colors duration-300 border-b border-gray-100 pb-2 flex items-center">
+                    <i class="fa fa-home mr-3"></i> 首页
+                </a>
+                <a href="#download" class="block py-2 text-gray-700 hover:text-primary-500 transition-colors duration-300 border-b border-gray-100 pb-2">下载安装包</a>
+                <a href="#instructions" class="block py-2 text-gray-700 hover:text-primary-500 transition-colors duration-300 border-b border-gray-100 pb-2">安装说明</a>
+                <a href="#faq" class="block py-2 text-gray-700 hover:text-primary-500 transition-colors duration-300">常见问题</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 英雄区域 -->
+    <section class="gradient-bg text-white py-20 md:py-28 overflow-hidden relative min-h-screen flex items-center">
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute top-1/4 left-1/4 w-64 h-64 bg-white rounded-full animate-float"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-48 h-48 bg-white rounded-full animate-float" style="animation-delay: 2s;"></div>
+            <div class="absolute top-1/3 right-1/3 w-32 h-32 bg-white rounded-full animate-float" style="animation-delay: 4s;"></div>
+        </div>
+        
+        <div class="container mx-auto px-4 text-center relative z-10 py-12">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-4xl md:text-6xl font-bold mb-6 text-shadow animate-fade-in">安装包下载</h1>
+                <p class="text-lg md:text-xl max-w-2xl mx-auto mb-8 opacity-95 animate-slide-up" style="animation-delay: 0.2s;">
+                    下载并安装桌面宠物应用，享受智能交互体验
+                </p>
+                
+                <div class="flex flex-col sm:flex-row justify-center gap-6 animate-slide-up mt-12" style="animation-delay: 0.4s;">
+                    <a href="https://github.com/cjz-wr/DesktopPetByAi/releases/download/2.0/DesktopPetByAi2.0.exe" class="glass-effect bg-white text-primary-500 px-8 py-5 rounded-xl font-medium hover:bg-gray-50 transition-all duration-300 transform hover:scale-105 shadow-soft flex items-center justify-center text-lg font-semibold">
+                        <i class="fa fa-download mr-3 text-xl"></i> 下载EXE安装包
+                    </a>
+                    <a href="#instructions" class="bg-white/20 backdrop-blur-sm text-white border-2 border-white/30 px-8 py-5 rounded-xl font-medium hover:bg-white/30 transition-all duration-300 transform hover:scale-105 shadow-soft text-lg font-semibold">
+                        安装说明
+                    </a>
+                </div>
+                
+                <!-- 安装包信息 -->
+                <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+                    <div class="bg-white/20 p-6 rounded-xl backdrop-blur-sm">
+                        <div class="text-3xl font-bold">EXE</div>
+                        <div class="text-sm opacity-90 mt-2">文件格式</div>
+                    </div>
+                    <div class="bg-white/20 p-6 rounded-xl backdrop-blur-sm">
+                        <div class="text-3xl font-bold">98MB</div>
+                        <div class="text-sm opacity-90 mt-2">文件大小</div>
+                    </div>
+                    <div class="bg-white/20 p-6 rounded-xl backdrop-blur-sm">
+                        <div class="text-3xl font-bold">Win</div>
+                        <div class="text-sm opacity-90 mt-2">系统要求</div>
+                    </div>
+                    <div class="bg-white/20 p-6 rounded-xl backdrop-blur-sm">
+                        <div class="text-3xl font-bold">安全</div>
+                        <div class="text-sm opacity-90 mt-2">无病毒检测</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 下载安装包 -->
+    <section id="download" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <span class="inline-block px-6 py-2 bg-primary-50 text-primary-600 rounded-full text-lg font-medium mb-6 shadow-soft">下载中心</span>
+                <h2 class="text-3xl md:text-5xl font-bold mb-6">下载安装包</h2>
+                <p class="text-gray-600 max-w-3xl mx-auto text-lg">获取最新版本的桌面宠物应用，体验智能对话与交互功能</p>
+            </div>
+            
+            <div class="max-w-6xl mx-auto">
+                <div class="grid md:grid-cols-2 gap-12">
+                    <div class="bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl shadow-soft border border-gray-100 h-full">
+                        <h3 class="text-2xl font-semibold mb-8 text-primary-700 flex items-center">
+                            <i class="fa fa-download text-primary-600 mr-3 text-2xl"></i>
+                            下载选项
+                        </h3>
+                        <div class="space-y-8">
+                            <!-- 版本列表 -->
+                            <div class="version-list">
+                                <div class="flex items-start mb-8 p-5 rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+                                    <div class="flex-shrink-0 w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mr-5 mt-1">
+                                        <i class="fa fa-windows text-2xl"></i>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                                            <h4 class="font-semibold text-xl">版本 2.0 (内测版)</h4>
+                                            <span class="bg-primary-500 text-white px-4 py-1 rounded-full text-sm mt-2 md:mt-0">推荐</span>
+                                        </div>
+                                        <p class="text-gray-600 mb-4">DesktopPetByAi2.0.exe | 大小: 98MB</p>
+                                        <ul class="text-gray-600 mb-5 space-y-2">
+                                            <li class="flex items-start">
+                                                <i class="fa fa-check text-green-500 mt-1 mr-3"></i>
+                                                <span>最新的功能和改进</span>
+                                            </li>
+                                            <li class="flex items-start">
+                                                <i class="fa fa-check text-green-500 mt-1 mr-3"></i>
+                                                <span>优化的性能和稳定性</span>
+                                            </li>
+                                            <li class="flex items-start">
+                                                <i class="fa fa-check text-green-500 mt-1 mr-3"></i>
+                                                <span>新增MCP功能和AI增强</span>
+                                            </li>
+                                        </ul>
+                                        <a href="https://github.com/cjz-wr/DesktopPetByAi/releases/download/2.0/DesktopPetByAi2.0.exe" class="inline-block bg-primary-500 hover:bg-primary-600 text-white px-7 py-3 rounded-lg font-medium transition-all duration-300 text-lg">
+                                            <i class="fa fa-download mr-2"></i> 立即下载
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-start mb-8 p-5 rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+                                    <div class="flex-shrink-0 w-12 h-12 bg-secondary-100 text-secondary-600 rounded-full flex items-center justify-center mr-5 mt-1">
+                                        <i class="fa fa-windows text-2xl"></i>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                                            <h4 class="font-semibold text-xl">版本 1.0 (测试版)</h4>
+                                            <span class="bg-secondary-500 text-white px-4 py-1 rounded-full text-sm mt-2 md:mt-0">稳定</span>
+                                        </div>
+                                        <p class="text-gray-600 mb-4">DesktopPet-1.0.7z | 大小: 103MB</p>
+                                        <ul class="text-gray-600 mb-5 space-y-2">
+                                            <li class="flex items-start">
+                                                <i class="fa fa-check text-blue-500 mt-1 mr-3"></i>
+                                                <span>经过充分测试的稳定功能</span>
+                                            </li>
+                                            <li class="flex items-start">
+                                                <i class="fa fa-check text-blue-500 mt-1 mr-3"></i>
+                                                <span>兼容性更强</span>
+                                            </li>
+                                            <li class="flex items-start">
+                                                <i class="fa fa-check text-blue-500 mt-1 mr-3"></i>
+                                                <span>适合旧系统环境</span>
+                                            </li>
+                                        </ul>
+                                        <a href="https://github.com/cjz-wr/DesktopPetByAi/releases/download/1.0/DesktopPet-1.0.7z" class="inline-block bg-secondary-500 hover:bg-secondary-600 text-white px-7 py-3 rounded-lg font-medium transition-all duration-300 text-lg">
+                                            <i class="fa fa-download mr-2"></i> 下载
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- 源代码选项 -->
+                                <div class="flex items-start p-5 rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+                                    <div class="flex-shrink-0 w-12 h-12 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center mr-5 mt-1">
+                                        <i class="fa fa-code text-2xl"></i>
+                                    </div>
+                                    <div class="flex-grow">
+                                        <h4 class="font-semibold text-xl mb-3">源代码</h4>
+                                        <p class="text-gray-600 mb-4">从GitHub获取源代码</p>
+                                        <a href="https://github.com/cjz-wr/DesktopPetByAi" target="_blank" class="inline-block bg-gray-600 hover:bg-gray-700 text-white px-7 py-3 rounded-lg font-medium transition-all duration-300 text-lg">
+                                            <i class="fa fa-github mr-2"></i> GitHub仓库
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl shadow-soft border border-gray-100 h-full">
+                        <h3 class="text-2xl font-semibold mb-8 text-primary-700 flex items-center">
+                            <i class="fa fa-info-circle text-primary-600 mr-3 text-2xl"></i>
+                            版本说明
+                        </h3>
+                        <div class="space-y-8">
+                            <div>
+                                <h4 class="text-xl font-semibold text-primary-600 mb-4">如何选择版本？</h4>
+                                <div class="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-6">
+                                    <p class="text-blue-800 font-medium text-lg mb-3">推荐使用最新版本 (2.0)</p>
+                                    <p class="text-blue-700">如果您希望获得最新功能和改进，建议下载最新版本。2.0版本包含更多AI交互功能、改进的性能和用户体验。</p>
+                                </div>
+                                
+                                <div class="bg-green-50 border border-green-100 rounded-xl p-6">
+                                    <p class="text-green-800 font-medium text-lg mb-3">选择稳定版本 (1.0)</p>
+                                    <p class="text-green-700">如果您需要一个经过充分测试且稳定可靠的版本，或者您的系统兼容性要求较高，建议选择1.0稳定版。</p>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-xl font-semibold text-primary-600 mb-4">版本历史</h4>
+                                <div class="space-y-5 max-h-96 overflow-y-auto pr-2">
+                                    <div class="border-l-4 border-primary-500 pl-5 py-2 bg-white/50 p-4 rounded-r-lg">
+                                        <p class="font-medium text-lg">版本 2.0</p>
+                                        <p class="text-gray-600">发布于 2026年1月 - 新增MCP功能、改进AI交互</p>
+                                    </div>
+                                    <div class="border-l-4 border-secondary-500 pl-5 py-2 bg-white/50 p-4 rounded-r-lg">
+                                        <p class="font-medium text-lg">版本 1.0</p>
+                                        <p class="text-gray-600">发布于 2025年8月 - 基础桌面宠物功能</p>
+                                    </div>
+                                    <div class="border-l-4 border-gray-500 pl-5 py-2 bg-white/50 p-4 rounded-r-lg">
+                                        <p class="font-medium text-lg">版本 0.5</p>
+                                        <p class="text-gray-600">发布于 2025年3月 - 初始测试版本</p>
+                                    </div>
+                                    <!-- 未来版本可以在这里添加 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-16 bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-2xl p-8">
+                    <div class="flex flex-col md:flex-row items-start">
+                        <i class="fa fa-exclamation-circle text-blue-500 text-3xl mt-1 mr-5"></i>
+                        <div>
+                            <h4 class="text-xl font-semibold mb-3 text-blue-700">安装前须知</h4>
+                            <ul class="text-gray-700 space-y-3">
+                                <li class="flex items-start">
+                                    <i class="fa fa-caret-right text-blue-500 mt-2 mr-3"></i>
+                                    <span>安装包大小约为98MB，请确保网络连接稳定</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa fa-caret-right text-blue-500 mt-2 mr-3"></i>
+                                    <span>如果下载链接无法使用，请访问<a href="https://github.com/cjz-wr/DesktopPetByAi/releases" class="text-blue-600 hover:underline">GitHub Releases页面</a>获取最新版本</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa fa-caret-right text-blue-500 mt-2 mr-3"></i>
+                                    <span>安装过程中可能需要管理员权限，请按提示操作</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <i class="fa fa-caret-right text-blue-500 mt-2 mr-3"></i>
+                                    <span>安装后请重启计算机以确保所有功能正常工作</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 安装说明 -->
+    <section id="instructions" class="py-20 gradient-bg-light">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <span class="inline-block px-6 py-2 bg-primary-50 text-primary-600 rounded-full text-lg font-medium mb-6 shadow-soft">安装指南</span>
+                <h2 class="text-3xl md:text-5xl font-bold mb-6">安装说明</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto text-lg">详细步骤指导您完成安装过程</p>
+            </div>
+            
+            <div class="max-w-5xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-medium p-8 transform transition-all duration-300 hover:shadow-xl">
+                    <div class="space-y-10">
+                        <div class="flex flex-col md:flex-row items-start">
+                            <div class="flex-shrink-0 w-14 h-14 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mr-0 md:mr-8 mb-4 md:mb-0">
+                                <span class="font-bold text-xl">1</span>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-semibold mb-3">下载安装包</h3>
+                                <p class="text-gray-600 text-lg">点击上方"下载EXE安装包"按钮，将安装文件保存到您的计算机上。下载完成后，您会得到一个名为DesktopPetByAi2.0.exe的文件。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col md:flex-row items-start">
+                            <div class="flex-shrink-0 w-14 h-14 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mr-0 md:mr-8 mb-4 md:mb-0">
+                                <span class="font-bold text-xl">2</span>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-semibold mb-3">运行安装程序</h3>
+                                <p class="text-gray-600 text-lg">双击下载的EXE文件，如果系统提示"Windows已保护您的电脑"，请点击"更多信息"，然后选择"仍要运行"。这将启动安装向导。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col md:flex-row items-start">
+                            <div class="flex-shrink-0 w-14 h-14 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mr-0 md:mr-8 mb-4 md:mb-0">
+                                <span class="font-bold text-xl">3</span>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-semibold mb-3">选择安装位置</h3>
+                                <p class="text-gray-600 text-lg">按照安装向导的提示操作，您可以选择默认安装位置或自定义安装路径。建议使用默认路径以确保所有功能正常工作。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col md:flex-row items-start">
+                            <div class="flex-shrink-0 w-14 h-14 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mr-0 md:mr-8 mb-4 md:mb-0">
+                                <span class="font-bold text-xl">4</span>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-semibold mb-3">完成安装</h3>
+                                <p class="text-gray-600 text-lg">等待安装程序完成文件复制，然后点击"完成"按钮。您可以在桌面找到应用快捷方式，或者通过开始菜单启动应用。</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col md:flex-row items-start">
+                            <div class="flex-shrink-0 w-14 h-14 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mr-0 md:mr-8 mb-4 md:mb-0">
+                                <span class="font-bold text-xl">5</span>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-xl font-semibold mb-3">配置应用</h3>
+                                <p class="text-gray-600 text-lg">首次启动时，通过系统托盘图标打开设置窗口，配置AI密钥等必要信息，然后即可开始使用桌面宠物的所有功能。</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-12 bg-gradient-to-r from-green-50 to-white border border-green-100 rounded-2xl p-8">
+                        <div class="flex flex-col md:flex-row items-start">
+                            <i class="fa fa-check-circle text-green-500 text-3xl mt-1 mr-5"></i>
+                            <div>
+                                <h4 class="text-xl font-semibold mb-3 text-green-700">安装成功后</h4>
+                                <p class="text-gray-700 text-lg">安装完成后，桌面宠物将自动启动并在系统托盘中显示图标。右键单击托盘图标可访问设置、显示聊天界面或退出应用。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 常见问题 -->
+    <section id="faq" class="py-20 bg-white">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <span class="inline-block px-6 py-2 bg-primary-50 text-primary-600 rounded-full text-lg font-medium mb-6 shadow-soft">常见问题</span>
+                <h2 class="text-3xl md:text-5xl font-bold mb-6">FAQ</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto text-lg">解决安装和使用过程中可能遇到的问题</p>
+            </div>
+            
+            <div class="max-w-4xl mx-auto space-y-8">
+                <div class="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-soft p-8 border border-gray-100 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <h3 class="text-xl font-semibold text-primary-700 mb-4">安装过程中遇到"无法运行"的提示怎么办？</h3>
+                    <p class="text-gray-600 text-lg">这通常是Windows的安全功能。请右键点击安装文件，选择"属性"，然后在"常规"选项卡中点击"解除锁定"按钮。如果提示"Windows已保护您的电脑"，请点击"更多信息"，然后选择"仍要运行"。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-soft p-8 border border-gray-100 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <h3 class="text-xl font-semibold text-primary-700 mb-4">安装后应用无法启动怎么办？</h3>
+                    <p class="text-gray-600 text-lg">请确保您的系统已安装最新版本的Visual C++ Redistributable。如果问题仍然存在，请尝试以管理员身份运行应用。您也可以在GitHub上提交问题报告，我们会尽快协助解决。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-soft p-8 border border-gray-100 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <h3 class="text-xl font-semibold text-primary-700 mb-4">如何更新到最新版本？</h3>
+                    <p class="text-gray-600 text-lg">下载最新版本的安装包并运行，安装程序会自动替换旧文件。如果您之前已配置过设置，这些设置通常会保留。您也可以卸载旧版本后再安装新版本。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-soft p-8 border border-gray-100 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <h3 class="text-xl font-semibold text-primary-700 mb-4">安装包是否安全？</h3>
+                    <p class="text-gray-600 text-lg">是的，我们的安装包是安全的。我们定期对安装包进行病毒扫描，确保没有恶意软件。安装包是使用Inno Setup创建的，这是一个广泛使用的安全安装包制作工具。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-gray-50 to-white rounded-2xl shadow-soft p-8 border border-gray-100 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                    <h3 class="text-xl font-semibold text-primary-700 mb-4">需要哪些系统要求？</h3>
+                    <p class="text-gray-600 text-lg">桌面宠物应用支持Windows 7及以上版本的操作系统。需要至少500MB的可用磁盘空间，以及稳定的网络连接以使用AI功能。建议使用Windows 10或更高版本以获得最佳体验。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 回到顶部按钮 -->
+    <button id="back-to-top" class="fixed bottom-8 right-8 w-14 h-14 bg-primary-500 text-white rounded-full shadow-hard flex items-center justify-center hover:bg-primary-600 transition-all duration-300 transform hover:scale-110 z-40 hidden">
+        <i class="fa fa-chevron-up text-xl"></i>
+    </button>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white pt-16 pb-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-12">
+                <div class="mb-10 md:mb-0 text-center md:text-left">
+                    <div class="flex items-center justify-center md:justify-start space-x-3 mb-4">
+                        <div class="relative">
+                            <i class="fa fa-robot text-primary-400 text-3xl"></i>
+                            <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-accent-500 rounded-full"></div>
+                        </div>
+                        <div>
+                            <span class="text-2xl font-bold">DesktopPetByAi</span>
+                            <div class="text-xs text-gray-400 mt-1">智能桌面宠物助手</div>
+                        </div>
+                    </div>
+                    <p class="text-gray-400 max-w-md text-center md:text-left">一款基于Python和AI的开源桌面助手应用，为您的日常工作和生活提供便利与乐趣。</p>
+                </div>
+                
+                <div class="flex space-x-6 mb-8 md:mb-0">
+                    <a href="https://github.com/cjz-wr/DesktopPetByAi" target="_blank" class="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-xl transition-all duration-300 transform hover:scale-110">
+                        <i class="fa fa-github"></i>
+                    </a>
+                    <a href="https://github.com/cjz-wr/DesktopPetByAi/issues" target="_blank" class="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-xl transition-all duration-300 transform hover:scale-110">
+                        <i class="fa fa-bug"></i>
+                    </a>
+                    <a href="https://github.com/cjz-wr/DesktopPetByAi/stargazers" target="_blank" class="w-12 h-12 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center text-xl transition-all duration-300 transform hover:scale-110">
+                        <i class="fa fa-star"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8 mt-8">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="text-gray-400 text-sm mb-6 md:mb-0 text-center md:text-left">
+                        <p>&copy; 2023 DesktopPetByAi. 基于 MIT 许可证开源。</p>
+                        <p class="mt-2">开发者：<a href="https://github.com/cjz-wr" class="text-primary-400 hover:text-primary-300 transition-colors" target="_blank">cjz-wr</a></p>
+                    </div>
+                    
+                    <div class="flex flex-wrap justify-center gap-6 text-sm">
+                        <a href="index.html" class="text-gray-400 hover:text-white transition-colors duration-300 flex items-center">
+                            <i class="fa fa-home mr-2"></i> 首页
+                        </a>
+                        <a href="#download" class="text-gray-400 hover:text-white transition-colors duration-300">下载安装包</a>
+                        <a href="#instructions" class="text-gray-400 hover:text-white transition-colors duration-300">安装说明</a>
+                        <a href="#faq" class="text-gray-400 hover:text-white transition-colors duration-300">常见问题</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 外部JavaScript文件 -->
+    <script src="script.js"></script>
+    <!-- 添加页面特定的脚本 -->
+    <script>
+        // 页面加载时的欢迎消息
+        window.addEventListener('load', () => {
+            console.log('%c🚀 DesktopPetByAi 安装包下载页面', 'font-size: 18px; font-weight: bold; color: #4CAF50;');
+        });
+    </script>
+</body>
+</html>

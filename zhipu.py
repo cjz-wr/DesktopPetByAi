@@ -52,12 +52,28 @@ def load_gif():
         print(f"没有权限访问文件夹 '{folder_path}'。")
     return GifList
 
-
+def load_img():
+    folder_path = "imgs"
+    ImgList = []
+    try:
+        with os.scandir(folder_path) as entries:
+            for entry in entries:
+                if entry.is_file():
+                    ImgList.append({
+                        "name": entry.name,
+                        #注释掉是为了提高ai的识别率
+                        # "path": os.path.join(folder_path, entry.name)
+                    })
+    except FileNotFoundError:
+        print(f"文件夹 '{folder_path}' 不存在。")
+    except PermissionError:
+        print(f"没有权限访问文件夹 '{folder_path}'。")
+    return ImgList
 
 def load_conversation(identity="default"):
 
     GifList = load_gif()
-
+    ImgList = load_img()
     filename = f"ai_memory/memory_{identity}.json"
     try:
         if os.path.exists(filename):
@@ -83,9 +99,10 @@ def load_conversation(identity="default"):
         
 
     )
-    respon = "你叫丫丫，18岁女生，是个人,性格有趣且是否热情，回复要简短自然带点幽默。你在windows聊天,是一个windows系统助手。你可以使用gif表达情感。注意：你所有的回答中都必须包含一个gif文件，且只能有这个。你还须了解你可以使用的gif文件。"
+    respon = "你叫丫丫，18岁女生，是个人,性格有趣且是否热情，回复要简短自然带点幽默。你在windows聊天,是一个windows系统助手。你可以使用gif表达情感。注意：你所有的回答中都必须包含一个gif文件，且只能有这个。你还须了解你可以使用的gif文件。不能仅有gif文件，而没有文字"
     HowUseGif = "使用gif的格式为[GIF:文件名],例如[GIF:走路]"
-    return [{"role": "system", "content": f"{respon},{use_cmd},{open_app},{HowUseGif},可用的gif有{GifList}"}]
+    HowSendImg = "如果你需要发送表情包，请严格使用如下格式输出：[IMAGE_NAME: 图片文件名]，中括号和冒号都不能省略，图片文件名必须是存在于图片目录下的文件，否则无法发送图片。表情包并非必须每次都发送，只有在合适的情况下才发送。"
+    return [{"role": "system", "content": f"{respon},{use_cmd},{open_app},{HowUseGif},可用的gif有{GifList},{HowSendImg},可用的图片有{ImgList}。;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。"}]
 
 def save_conversation(identity, messages):
     filename = f"ai_memory/memory_{identity}.json"

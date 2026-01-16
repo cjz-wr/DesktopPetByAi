@@ -1,0 +1,306 @@
+/* 基础样式 */
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+}
+
+body {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    overflow-x: hidden;
+    font-family: 'Inter', 'system-ui', sans-serif;
+}
+
+::selection {
+    background-color: rgba(76, 175, 80, 0.3);
+    color: #1f2937;
+}
+
+/* 自定义滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* 自定义工具类 */
+.text-shadow {
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.text-gradient {
+    background: linear-gradient(90deg, #4CAF50, #1a73e8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card-hover {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card-hover:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.gradient-bg {
+    background: linear-gradient(135deg, #4CAF50 0%, #1a73e8 50%, #ea4335 100%);
+    background-size: 200% 200%;
+    animation: gradientX 15s ease infinite;
+}
+
+.gradient-bg-light {
+    background: linear-gradient(135deg, #f0f9f0 0%, #eff6ff 50%, #fef2f2 100%);
+}
+
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.3), transparent);
+    margin: 4rem auto;
+    max-width: 800px;
+}
+
+.feature-icon {
+    position: relative;
+    z-index: 1;
+}
+
+.feature-icon::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70px;
+    height: 70px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 50%;
+    z-index: -1;
+}
+
+.staggered-animation > * {
+    opacity: 0;
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+.staggered-animation > *:nth-child(1) { animation-delay: 0.1s; }
+.staggered-animation > *:nth-child(2) { animation-delay: 0.2s; }
+.staggered-animation > *:nth-child(3) { animation-delay: 0.3s; }
+.staggered-animation > *:nth-child(4) { animation-delay: 0.4s; }
+.staggered-animation > *:nth-child(5) { animation-delay: 0.5s; }
+.staggered-animation > *:nth-child(6) { animation-delay: 0.6s; }
+
+.scroll-indicator {
+    width: 30px;
+    height: 50px;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    border-radius: 25px;
+    position: relative;
+    margin: 0 auto;
+}
+
+.scroll-indicator::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 10px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 2px;
+    animation: scrollAnimation 2s infinite;
+}
+
+@keyframes scrollAnimation {
+    0% { top: 10px; opacity: 1; }
+    100% { top: 30px; opacity: 0; }
+}
+
+.typewriter {
+    overflow: hidden;
+    border-right: 2px solid #4CAF50;
+    white-space: nowrap;
+    margin: 0 auto;
+    animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+}
+
+@keyframes blink-caret {
+    from, to { border-color: transparent }
+    50% { border-color: #4CAF50; }
+}
+
+.chat-bubble {
+    position: relative;
+    background: #f1f5f9;
+    border-radius: 1rem;
+    padding: 1rem;
+    max-width: 80%;
+    margin: 1rem 0;
+}
+
+.chat-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 20px;
+    border-width: 10px 10px 0;
+    border-style: solid;
+    border-color: #f1f5f9 transparent;
+}
+
+.directory-tree {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.directory-item {
+    padding-left: 1.5rem;
+    position: relative;
+}
+
+.directory-item::before {
+    content: '├── ';
+    position: absolute;
+    left: 0;
+    color: #6b7280;
+}
+
+.directory-item:last-child::before {
+    content: '└── ';
+}
+
+.file-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+/* 关键帧动画 */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+}
+
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+    0% { opacity: 0; transform: translateY(30px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gradientX {
+    0%, 100% { background-position: 0% 50%; }
+    50% { backgroundPosition: 100% 50%; }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* 视频播放器自定义样式 */
+.video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 比例 */
+    height: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #000;
+}
+
+.video-container video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 0 0 12px 12px;
+}
+
+video::-webkit-media-controls-panel {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-mute-button {
+    filter: brightness(0) invert(1);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .directory-tree {
+        font-size: 0.8rem;
+    }
+}
+
+/* 加载动画 */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(76, 175, 80, 0.3);
+    border-radius: 50%;
+    border-top-color: #4CAF50;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 进度条 */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background-color: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #1a73e8);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
