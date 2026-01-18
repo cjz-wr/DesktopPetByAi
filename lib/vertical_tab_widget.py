@@ -550,10 +550,20 @@ class VerticalTabWidget(QWidget):
                 <li>在设置页面可以配置背景图片</li>
                 <li>调整透明度使图片更符合您的需求</li>
                 <li>调整亮度优化显示效果</li>
-                <li>现在支持实时预览效果</li>
-                <li>设置页面已添加滚动功能</li>
-                <li>主界面新增AI聊天功能</li>
-                <li>回复会有语音</li>
+                <li>需要自行配置API密钥</li>
+            </ul>
+            <p style='color: red; font-size: 20px;'><b>注意：</b></p>
+            <ul style='color: black;'>
+                <li>本项目仅供学习和研究使用，请勿用于商业用途。</li>
+                <li>请遵守相关法律法规，尊重知识产权。</li>
+                <li>请勿用于非法用途。如涉及侵犯他人权益的行为,与开发者无关。</li>
+            </ul>
+            <p style='color: black;'><b>更新说明：</b></p>
+            <ul style='color: black;'>
+                <li>添加openai api支持</li>
+                <li>可以调用本地模型（需自行部署）</li>
+                <li>修复一些bug</li>
+                <li>我要让她更像人,啊啊啊啊</li>
             </ul>
         """)
         
