@@ -3,13 +3,15 @@ import json, os
 from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog, QStyle, QButtonGroup, 
                             QFrame, QVBoxLayout, QDoubleSpinBox, QSpinBox, QFileDialog, QTabBar, 
                             QHBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QScrollArea,
-                            QTextEdit, QDialogButtonBox, QMessageBox, QSplitter, QMenu, QSystemTrayIcon, QComboBox, QLineEdit)
+                            QTextEdit, QDialogButtonBox, QMessageBox, QSplitter, QMenu, QSystemTrayIcon, QComboBox, QLineEdit, QCheckBox)
 from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread
 from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMetrics, QPen, QColor, 
                          QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
 import zhipu as zhipu
+import openai_api as openai_api  # 导入OpenAI API模块
 
 import lib.toVoice as toVoice
+import lib.toimg as toimg  # 导入图片生成库
 import logging, os
 import time,re
 import lib.imgin as imgin
@@ -27,7 +29,20 @@ class AIWorker(QThread):
 
     def run(self):
         try:
-            reply = zhipu.get_ai_reply_sync(self.messages) # 获取AI回复的同步方法·
+            # 从配置文件中读取API提供商选择
+            try:
+                with open("demo_setting.json", "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+            except FileNotFoundError:
+                api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+            # 根据API提供商选择相应的API函数
+            if api_provider == "openai":
+                reply = openai_api.get_ai_reply_sync(self.messages)
+            else:
+                reply = zhipu.get_ai_reply_sync(self.messages)
+                
             self.finished.emit(reply)
         except Exception as e:
             self.error.emit(str(e))
@@ -44,10 +59,34 @@ class ImageAnalysisWorker(QThread):
 
     def run(self):
         try:
+            if self.prompt_text == "":
+                self.prompt_text = "请描述这张图片的内容。"
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             result = loop.run_until_complete(imgin.analyze_image_with_ai(self.image_path, prompt_text=self.prompt_text))
             loop.close()
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
+class ImageGenerationWorker(QThread):
+    """图片生成工作线程"""
+    finished = pyqtSignal(dict)  # 发送 图片生成结果
+    error = pyqtSignal(str)      # 发送错误信息
+
+    def __init__(self, prompt, parent=None):
+        super().__init__(parent)
+        self.prompt = prompt
+
+    def run(self):
+        try:
+            # 使用toimg库生成图片
+            result = toimg.generate_image_with_cogview(
+                prompt=self.prompt,
+                size="1024x1024",  # 默认尺寸，可以根据需要调整
+                n=1,               # 生成一张图片
+                quality="standard" # 默认质量
+            )
             self.finished.emit(result)
         except Exception as e:
             self.error.emit(str(e))
@@ -96,12 +135,15 @@ class ChatWidget(QWidget):
         self.input_edit = QTextEdit()
         self.input_edit.setPlaceholderText("输入消息...")
         self.input_edit.setMaximumHeight(100)
+
+        # 设置输入框样式
         self.input_edit.setStyleSheet("""
             QTextEdit {
-                background-color: rgba(255, 255, 255, 200);
-                border: 1px solid #cccccc;
+                background-color: rgba(255, 255, 255, 200); 
+                border: 1px solid #cccccc; // 设置边框颜色
                 border-radius: 5px;
                 padding: 8px;
+                color: black;
             }
         """)
         
@@ -213,6 +255,19 @@ class ChatWidget(QWidget):
         input_layout.addWidget(self.clear_image_button)
         
         
+        # 添加播放音频选项复选框
+        self.voice_checkbox = QCheckBox("播放音频")
+        self.voice_checkbox.setChecked(True)  # 默认勾选
+        self.voice_checkbox.setStyleSheet("""
+            QCheckBox {
+                background-color: transparent;
+                padding: 5px;
+                font-weight: bold;
+            }
+        """)
+        input_layout.addWidget(self.voice_checkbox)
+        
+        
         # 添加到分割器
         splitter.addWidget(self.chat_history)
         splitter.addWidget(input_frame)
@@ -270,7 +325,20 @@ class ChatWidget(QWidget):
 
     def load_conversation(self):
         """加载历史对话并显示在聊天区域"""
-        messages = zhipu.load_conversation("default")
+        # 从配置文件中读取API提供商选择
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        except FileNotFoundError:
+            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+        # 根据API提供商选择相应的加载函数
+        if api_provider == "openai":
+            messages = openai_api.load_conversation("default")
+        else:
+            messages = zhipu.load_conversation("default")
+        
         for msg in messages:
             if msg['role'] == 'user':
                 # 检查用户消息是否包含图片路径
@@ -286,21 +354,59 @@ class ChatWidget(QWidget):
                 if "[IMAGE_NAME:" in content:
                     # 提取图片名称
                     reply_img = re.search(r'\[IMAGE_NAME:\s*(.+?)\]', content).group(1).strip()
+                    
+                    # 首先尝试在imgs目录查找（原有的表情包）
                     imgPath = os.path.join("imgs", reply_img)
-                    # 判断图片是否存在
-                    if os.path.exists(imgPath):
-                        # 改为绝对路径
+                    img_exists = os.path.exists(imgPath)
+                    
+                    # 如果在imgs目录找不到，尝试在images目录查找（新生成的图片）
+                    if not img_exists:
+                        imgPath = os.path.join("images", reply_img)
+                        img_exists = os.path.exists(imgPath)
+                    
+                    # 如果还是找不到，尝试从完整路径加载
+                    if not img_exists:
+                        imgPath = reply_img if os.path.isabs(reply_img) else os.path.abspath(reply_img)
+                        img_exists = os.path.exists(imgPath)
+                    
+                    #判断图片是否存在
+                    if img_exists:
+                        #改为绝对路径
                         imgPath = os.path.abspath(imgPath)
-                        # 提取纯文本内容
+                        #提取纯文本内容，同时去除IMAGE_PROMPT信息
                         text_content = content.replace(f"[IMAGE_NAME: {reply_img}]", "").strip()
+                        # 去除IMAGE_PROMPT标记
+                        text_content = re.sub(r'\[IMAGE_PROMPT:\s*.+?\]', '', text_content).strip()
                         if text_content != "":
                             self.add_message("ICAT", text_content, is_user=False, image_path=imgPath)
                         else:
                             self.add_message("ICAT", "", is_user=False, image_path=imgPath)
                     else:
-                        self.add_message("ICAT", "抱歉，没有找到表情包呢", is_user=False)
+                        # 检查是否包含IMAGE_PROMPT信息但图片不存在
+                        if "[IMAGE_PROMPT:" in content:
+                            # 提取提示词信息并显示
+                            prompt_match = re.search(r'\[IMAGE_PROMPT:\s*(.+?)\]', content)
+                            if prompt_match:
+                                prompt = prompt_match.group(1).strip()
+                                text_content = re.sub(r'\[IMAGE_PROMPT:\s*.+?\]', '', content).replace(f"[IMAGE_NAME: {reply_img}]", "").strip()
+                                self.add_message("ICAT", f"{text_content} (图片生成提示词: {prompt}) 图片文件未找到", is_user=False)
+                            else:
+                                self.add_message("ICAT", "抱歉，没有找到表情包呢", is_user=False)
+                        else:
+                            self.add_message("ICAT", "抱歉，没有找到表情包呢", is_user=False)
                 else:
-                    self.add_message("ICAT", content, is_user=False)
+                    # 检查是否包含IMAGE_PROMPT但没有IMAGE_NAME（可能是生成失败的情况）
+                    if "[IMAGE_PROMPT:" in content:
+                        # 提取提示词信息并显示
+                        prompt_match = re.search(r'\[IMAGE_PROMPT:\s*(.+?)\]', content)
+                        if prompt_match:
+                            prompt = prompt_match.group(1).strip()
+                            text_content = re.sub(r'\[IMAGE_PROMPT:\s*.+?\]', '', content).strip()
+                            self.add_message("ICAT", f"{text_content} (尝试生成图片的提示词: {prompt})", is_user=False)
+                        else:
+                            self.add_message("ICAT", content, is_user=False)
+                    else:
+                        self.add_message("ICAT", content, is_user=False)
     
     def add_message(self, sender, message, is_user=True, image_path=None):
         """添加消息到聊天区域"""
@@ -370,9 +476,21 @@ class ChatWidget(QWidget):
             }
         
         # 加载现有对话并添加新消息
-        messages = zhipu.load_conversation("default")
-        messages.append(message_data)
-        zhipu.save_conversation("default", messages)
+        # 从配置文件中读取API提供商选择
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        except FileNotFoundError:
+            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+        # 根据API提供商选择相应的加载和保存函数
+        if api_provider == "openai":
+            messages = openai_api.load_conversation("default")
+            openai_api.save_conversation("default", messages + [message_data])
+        else:
+            messages = zhipu.load_conversation("default")
+            zhipu.save_conversation("default", messages + [message_data])
     
     def GetAiByImg(self,img_path,text):
         # 先将用户消息（包括图片）添加到聊天区域
@@ -403,15 +521,32 @@ class ChatWidget(QWidget):
     
     def process_img_text_message(self, image_description, img_path, text):
         """处理图片和文本消息"""
-        # 构建消息 - 合并文本和图片信息
-        messages = zhipu.load_conversation("default")
+        # 从配置文件中读取API提供商选择
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        except FileNotFoundError:
+            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+        # 根据API提供商选择相应的加载函数
+        if api_provider == "openai":
+            messages = openai_api.load_conversation("default")
+        else:
+            messages = zhipu.load_conversation("default")
+        
         if text:
-            # 既有图片又有文字
+            # 既有图片又有文本
             messages.append({"role": "user", "content": f"**SEND*用户向你发送了一张图片，这是图片描述:{image_description}\n用户还说了以下内容:{text}"})
         else:
             # 只有图片的情况
             messages.append({"role": "user", "content": f"**SEND*用户向你发送了一下内容的图片{image_description}"})
-        zhipu.save_conversation("default", messages)
+        
+        # 根据API提供商选择相应的保存函数
+        if api_provider == "openai":
+            openai_api.save_conversation("default", messages)
+        else:
+            zhipu.save_conversation("default", messages)
         
         # 更新之前的"正在分析图片"消息为AI正在思考
         for i in range(3):  # 移除之前的几行
@@ -426,15 +561,32 @@ class ChatWidget(QWidget):
     
     def process_message_with_image(self, image_description, input_text):
         """处理包含图片的消息"""
-        # 构建消息 - 如果既有文本又有图片，合并在一起
-        messages = zhipu.load_conversation("default")
+        # 从配置文件中读取API提供商选择
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        except FileNotFoundError:
+            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+        # 根据API提供商选择相应的加载函数
+        if api_provider == "openai":
+            messages = openai_api.load_conversation("default")
+        else:
+            messages = zhipu.load_conversation("default")
+        
         if input_text:
             # 既有图片又有文本
             messages.append({"role": "user", "content": f"*SEND*用户向你发送了一张图片，这是图片描述:{image_description}\n用户还说了以下内容:{input_text}"})
         else:
             # 只有图片的情况
             messages.append({"role": "user", "content": f"*SEND*用户向你发送了一下内容的图片{image_description}"})
-        zhipu.save_conversation("default", messages)
+        
+        # 根据API提供商选择相应的保存函数
+        if api_provider == "openai":
+            openai_api.save_conversation("default", messages)
+        else:
+            zhipu.save_conversation("default", messages)
         
         # 更新之前的"正在分析图片"消息为AI正在思考
         for i in range(3):  # 移除之前的几行
@@ -473,8 +625,8 @@ class ChatWidget(QWidget):
         else:
             # 只有文本，添加到聊天区域
             self.add_message("你", input_text, is_user=True)
-            # 保存文本消息到历史记录
-            self.save_message_to_history("你", input_text)
+            # 保存文本消息到历史记录 - 注释掉以避免重复保存
+            # self.save_message_to_history("你", input_text)
         
         # 禁用发送按钮，防止重复发送
         self.send_button.setEnabled(False)
@@ -502,16 +654,28 @@ class ChatWidget(QWidget):
     
     def process_text_only_message(self, input_text):
         """处理只有文本的消息"""
-        # # 添加用户消息到聊天区域
-        # self.add_message("你", input_text, is_user=True)
-        
-        # # 保存消息到历史记录
-        # self.save_message_to_history("你", input_text)
-        
         # 构建消息
-        messages = zhipu.load_conversation("default")
+        # 从配置文件中读取API提供商选择
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        except FileNotFoundError:
+            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+        # 根据API提供商选择相应的加载函数
+        if api_provider == "openai":
+            messages = openai_api.load_conversation("default")
+        else:
+            messages = zhipu.load_conversation("default")
+        
         messages.append({"role": "user", "content": input_text})
-        zhipu.save_conversation("default", messages)
+        
+        # 根据API提供商选择相应的保存函数
+        if api_provider == "openai":
+            openai_api.save_conversation("default", messages)
+        else:
+            zhipu.save_conversation("default", messages)
         
         # 显示加载提示
         self.add_message("系统", "ICAT 正在思考...", is_user=False)
@@ -528,7 +692,146 @@ class ChatWidget(QWidget):
         for i in range(3):  # 对于添加消息时的几行内容
             self.chat_history.undo()
         
+        # 检查AI回复中是否包含DRAW指令，这是AI生成图片的特定格式
+        draw_match = re.search(r'\[DRAW:\s*(.+?)\]', reply)
+        if draw_match:
+            # 提取DRAW指令中的图片描述
+            image_prompt = draw_match.group(1).strip()
+            # 移除DRAW标记，保留其他文本内容
+            text_reply = re.sub(r'\[DRAW:\s*.+?\]', '', reply).strip()
+            
+            # 显示图片生成提示
+            self.add_message("系统", f"正在生成图片: {image_prompt}", is_user=False)
+            
+            # 创建并启动图片生成工作线程
+            self.image_gen_worker = ImageGenerationWorker(image_prompt)
+            self.image_gen_worker.finished.connect(lambda result: self.on_image_generated(result, text_reply, image_prompt))
+            self.image_gen_worker.error.connect(self.on_ai_error)
+            self.image_gen_worker.start()
+        else:
+            self.finish_ai_reply_without_image(reply)
+    
+    def should_generate_image(self, ai_reply, user_input):
+        """判断AI回复是否需要生成图片"""
+        # 检查AI回复中是否包含DRAW指令，这是AI生成图片的特定格式
+        if '[DRAW:' in ai_reply:
+            return True
+        
+        return False
 
+    def extract_image_prompt(self, ai_reply):
+        """从AI回复中提取用于生成图片的提示词"""
+        # 首先检查AI回复中是否包含DRAW指令，这是AI生成图片的特定格式
+        draw_match = re.search(r'\[DRAW:\s*(.+?)\]', ai_reply)
+        if draw_match:
+            return draw_match.group(1).strip()
+        
+        # 尝试从AI回复中提取图片描述或提示词
+        # 查找"画"关键字后的描述
+        import re
+        patterns = [
+            r'画[一下幅张]\s*(.+?)[\n，。！？,\.]',  # 如："画一只可爱的小猫。"
+            r'生成[一下幅张]\s*(.+?)[\n，。！？,\.]',  # 如："生成一只可爱的小猫。"
+            r'制作[一下幅张]\s*(.+?)[\n，。！？,\.]',  # 如："制作一只可爱的小猫。"
+            r'画[一下幅张]\s*(.+)',  # 如："画一只可爱的小猫"（句末无标点）
+            r'生成[一下幅张]\s*(.+)',  # 如："生成一只可爱的小猫"（句末无标点）
+            r'制作[一下幅张]\s*(.+)',  # 如："制作一只可爱的小猫"（句末无标点）
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, ai_reply)
+            if match:
+                prompt = match.group(1).strip()
+                # 进一步清理提取到的提示词
+                prompt = re.sub(r'[，。！？,.!?]*$', '', prompt)
+                if len(prompt) > 0:
+                    return prompt
+
+        # 如果AI回复中没有明确提示词，使用整个AI回复作为提示词
+        return ai_reply.strip()
+
+    def on_image_generated(self, result, original_reply, image_prompt=None):
+        """处理图片生成完成后的回调"""
+        # 移除"正在生成图片"提示
+        for i in range(3):  # 移除之前的几行
+            self.chat_history.undo()
+            
+        if result["success"]:
+            # 获取生成的图片路径
+            image_path = result.get("image_path", "")
+            if image_path:
+                # 添加AI回复，包含图片
+                if original_reply != "":
+                    self.add_message("ICAT", original_reply, is_user=False, image_path=image_path)
+                else:
+                    self.add_message("ICAT", "", is_user=False, image_path=image_path)
+                
+                # 保存AI回复到对话历史，包含图片生成的提示词信息
+                messages = zhipu.load_conversation("default")
+                # 在这里添加图片生成的提示词到记忆中
+                # 如果没有传入image_prompt，则尝试从original_reply中提取
+                if not image_prompt:
+                    image_prompt = self.extract_image_prompt(original_reply)
+                # 保存时使用图片文件名，而不是完整路径，这样在不同环境下都可以正确加载
+                image_filename = os.path.basename(image_path)
+                # 清理可能存在的嵌套IMAGE_NAME和IMAGE_PROMPT标记
+                cleaned_text_reply = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+                cleaned_text_reply = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', cleaned_text_reply).strip()
+                image_generation_info = f"{cleaned_text_reply} [IMAGE_NAME: {image_filename}] [IMAGE_PROMPT: {image_prompt}]"
+                messages.append({"role": "assistant", "content": image_generation_info})
+                zhipu.save_conversation("default", messages)
+            else:
+                self.add_message("ICAT", "图片生成完成，但未能获取到图片路径", is_user=False)
+        else:
+            # 图片生成失败，显示原始回复并添加错误信息
+            error_msg = result.get("error", "未知错误")
+            self.add_message("ICAT", f"{original_reply}\n（图片生成失败：{error_msg}）", is_user=False)
+            
+            # 保存AI回复到对话历史，包含错误信息
+            messages = zhipu.load_conversation("default")
+            # 即使生成失败，也要记录这次尝试
+            # 如果没有传入image_prompt，则尝试从original_reply中提取
+            if not image_prompt:
+                image_prompt = self.extract_image_prompt(original_reply)
+            # 清理可能存在的嵌套IMAGE_NAME和IMAGE_PROMPT标记
+            cleaned_original_reply = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+            cleaned_original_reply = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', cleaned_original_reply).strip()
+            image_generation_attempt = f"{cleaned_original_reply}\n（图片生成失败：{error_msg}）[IMAGE_PROMPT: {image_prompt}]"
+            messages.append({"role": "assistant", "content": image_generation_attempt})
+            zhipu.save_conversation("default", messages)
+
+        # 重新启用发送按钮
+        self.send_button.setEnabled(True)
+        self.input_edit.setEnabled(True)
+        self.image_button.setEnabled(True)
+        # 清空输入框
+        self.input_edit.clear()
+        self.input_edit.setFocus()
+        
+        # 通知主窗口刷新GIF动画
+        # 兼容通过main.py打开的settingwindow.py
+        main_window = None
+        parent = self.parent()
+        while parent is not None:
+            # 直接QMainWindow或DesktopPet
+            if hasattr(parent, "refresh_gif"):
+                main_window = parent
+                break
+            # QDialog嵌套时再向上找
+            if hasattr(parent, "parent"):
+                parent = parent.parent()
+            else:
+                break
+        # 如果没找到，再尝试通过QApplication遍历所有 topLevel 窗口
+        if main_window is None:
+            for widget in QApplication.topLevelWidgets():
+                if hasattr(widget, "refresh_gif"):
+                    main_window = widget
+                    break
+        if main_window and hasattr(main_window, "refresh_gif"):
+            main_window.refresh_gif()
+
+    def finish_ai_reply_without_image(self, reply):
+        """处理不需要生成图片的AI回复"""
         if "[IMAGE_NAME:" in reply:
             reply_img = re.search(r'\[IMAGE_NAME:\s*(.+?)\]', reply).group(1).strip()
             imgPath = os.path.join("imgs", reply_img)
@@ -546,17 +849,27 @@ class ChatWidget(QWidget):
         else:
             # 添加AI回复
             self.add_message("ICAT", reply, is_user=False)
-            # 异步输出音频
-            toVoice.TextToSpeech().speak_async(reply)
-        
+            # 根据复选框状态决定是否播放音频
+            if self.voice_checkbox.isChecked():
+                toVoice.TextToSpeech().speak_async(reply)
         
         # 保存AI回复到对话历史
-        messages = zhipu.load_conversation("default")
-        messages.append({"role": "assistant", "content": reply})
-        zhipu.save_conversation("default", messages)
+        # 从配置文件中读取API提供商选择
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        except FileNotFoundError:
+            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
 
-        
-        
+        # 根据API提供商选择相应的加载和保存函数
+        if api_provider == "openai":
+            messages = openai_api.load_conversation("default")
+            openai_api.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
+        else:
+            messages = zhipu.load_conversation("default")
+            zhipu.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
+
         # 重新启用发送按钮
         self.send_button.setEnabled(True)
         self.input_edit.setEnabled(True)

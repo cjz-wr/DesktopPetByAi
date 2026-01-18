@@ -405,6 +405,120 @@ class VerticalTabWidget(QWidget):
         line5.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
         scroll_layout.addWidget(line5)
 
+        # OpenAI API 设置区域
+        openai_group = QWidget()
+        openai_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
+        openai_layout = QVBoxLayout(openai_group)
+
+        openai_label = QLabel("<b style='color: black;'>OpenAI API 设置</b>")
+        if self.font_manager:
+            self.font_manager.register_widget(openai_label)
+        openai_layout.addWidget(openai_label)
+
+        # OpenAI API Key
+        openai_key_label = QLabel("OpenAI API Key:")
+        if self.font_manager:
+            self.font_manager.register_widget(openai_key_label)
+        openai_layout.addWidget(openai_key_label)
+
+        self.openai_key_edit = QTextEdit()
+        self.openai_key_edit.setPlaceholderText("请输入OpenAI API Key...")
+        self.openai_key_edit.setMaximumHeight(60)
+        self.openai_key_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        if self.font_manager:
+            self.font_manager.register_widget(self.openai_key_edit)
+        openai_layout.addWidget(self.openai_key_edit)
+
+        # OpenAI Base URL
+        openai_base_label = QLabel("OpenAI Base URL:")
+        if self.font_manager:
+            self.font_manager.register_widget(openai_base_label)
+        openai_layout.addWidget(openai_base_label)
+
+        self.openai_base_edit = QLineEdit()
+        self.openai_base_edit.setPlaceholderText("https://api.openai.com/v1")
+        self.openai_base_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        if self.font_manager:
+            self.font_manager.register_widget(self.openai_base_edit)
+        openai_layout.addWidget(self.openai_base_edit)
+
+        # OpenAI Model
+        openai_model_label = QLabel("OpenAI Model:")
+        if self.font_manager:
+            self.font_manager.register_widget(openai_model_label)
+        openai_layout.addWidget(openai_model_label)
+
+        self.openai_model_edit = QLineEdit()
+        self.openai_model_edit.setPlaceholderText("gpt-3.5-turbo")
+        self.openai_model_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        if self.font_manager:
+            self.font_manager.register_widget(self.openai_model_edit)
+        openai_layout.addWidget(self.openai_model_edit)
+
+        # 添加常用模型提示
+        openai_hint = QLabel("常用模型: gpt-3.5-turbo, gpt-4, gpt-4o, gpt-4-turbo")
+        openai_hint.setStyleSheet("color: #666666; font-size: 12px;")
+        if self.font_manager:
+            self.font_manager.register_widget(openai_hint)
+        openai_layout.addWidget(openai_hint)
+
+        # 加载当前OpenAI配置
+        self.load_openai_config()
+
+        save_openai_button = QPushButton("保存OpenAI配置")
+        save_openai_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        save_openai_button.clicked.connect(self.save_openai_config)
+        if self.font_manager:
+            self.font_manager.register_widget(save_openai_button)
+        openai_layout.addWidget(save_openai_button)
+
+        scroll_layout.addWidget(openai_group)
+
+        # 分隔线
+        line6 = QFrame()
+        line6.setFrameShape(QFrame.Shape.HLine)
+        line6.setFrameShadow(QFrame.Shadow.Sunken)
+        line6.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
+        scroll_layout.addWidget(line6)
+
+        # API选择区域
+        api_group = QWidget()
+        api_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
+        api_layout = QVBoxLayout(api_group)
+
+        api_label = QLabel("<b style='color: black;'>API 选择</b>")
+        if self.font_manager:
+            self.font_manager.register_widget(api_label)
+        api_layout.addWidget(api_label)
+
+        # 创建API选择下拉框
+        self.api_selector = QComboBox()
+        self.api_selector.addItems(["智谱AI (ZhipuAI)", "OpenAI"])
+        self.api_selector.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        if self.font_manager:
+            self.font_manager.register_widget(self.api_selector)
+        api_layout.addWidget(self.api_selector)
+
+        # 加载当前API选择
+        self.load_api_selection()
+
+        save_api_button = QPushButton("保存API选择")
+        save_api_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        save_api_button.clicked.connect(self.save_api_selection)
+        if self.font_manager:
+            self.font_manager.register_widget(save_api_button)
+        api_layout.addWidget(save_api_button)
+
+        scroll_layout.addWidget(api_group)
+
+        # 分隔线
+        line7 = QFrame()
+        line7.setFrameShape(QFrame.Shape.HLine)
+        line7.setFrameShadow(QFrame.Shadow.Sunken)
+        line7.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
+        scroll_layout.addWidget(line7)
+
+        # 创建并注册选择字体按钮
         self.select_font_ = QPushButton("选择字体")
         self.select_font_.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")  # 半透明按钮
         self.select_font_.clicked.connect(self.select_font)
@@ -599,6 +713,79 @@ class VerticalTabWidget(QWidget):
             QMessageBox.information(self, "保存成功", "模型已成功更新！\n请注意：修改模型后需要重启程序才能生效。")
         except Exception as e:
             QMessageBox.warning(self, "保存失败", f"无法保存模型: {str(e)}")
+
+    def load_openai_config(self):
+        """从配置文件中加载当前OpenAI配置"""
+        try:
+            # 从data_setting中获取OpenAI配置
+            openai_key = self.data_setting.get("openai_key", "")
+            openai_base_url = self.data_setting.get("openai_base_url", "https://api.openai.com/v1")
+            openai_model = self.data_setting.get("openai_model", "gpt-3.5-turbo")
+            
+            self.openai_key_edit.setPlainText(openai_key)
+            self.openai_base_edit.setText(openai_base_url)
+            self.openai_model_edit.setText(openai_model)
+        except Exception as e:
+            QMessageBox.warning(self, "加载失败", f"无法加载OpenAI配置: {str(e)}")
+
+    def save_openai_config(self):
+        """保存新的OpenAI配置到配置文件"""
+        openai_key = self.openai_key_edit.toPlainText().strip()
+        openai_base_url = self.openai_base_edit.text().strip()
+        openai_model = self.openai_model_edit.text().strip()
+        
+        if not openai_key:
+            QMessageBox.warning(self, "输入错误", "OpenAI API Key不能为空！")
+            return
+        
+        if not openai_base_url:
+            openai_base_url = "https://api.openai.com/v1"
+        
+        if not openai_model:
+            openai_model = "gpt-3.5-turbo"
+
+        try:
+            # 更新data_setting中的OpenAI配置
+            self.data_setting["openai_key"] = openai_key
+            self.data_setting["openai_base_url"] = openai_base_url
+            self.data_setting["openai_model"] = openai_model
+            
+            # 保存到配置文件
+            with open("demo_setting.json", "w", encoding="utf-8") as f:
+                json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
+
+            QMessageBox.information(self, "保存成功", "OpenAI配置已成功更新！\n请注意：修改配置后需要重启程序才能生效。")
+        except Exception as e:
+            QMessageBox.warning(self, "保存失败", f"无法保存OpenAI配置: {str(e)}")
+
+    def load_api_selection(self):
+        """从配置文件中加载当前API选择"""
+        try:
+            # 从data_setting中获取API选择
+            api_provider = self.data_setting.get("api_provider", "zhipu")
+            if api_provider == "openai":
+                self.api_selector.setCurrentIndex(1)
+            else:
+                # 默认选择智谱AI
+                self.api_selector.setCurrentIndex(0)
+        except Exception as e:
+            print(f"加载API选择失败: {str(e)}")
+
+    def save_api_selection(self):
+        """保存新的API选择到配置文件"""
+        current_index = self.api_selector.currentIndex()
+        api_provider = "openai" if current_index == 1 else "zhipu"
+        
+        try:
+            # 更新data_setting中的API选择
+            self.data_setting["api_provider"] = api_provider
+            # 保存到配置文件
+            with open("demo_setting.json", "w", encoding="utf-8") as f:
+                json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
+
+            QMessageBox.information(self, "保存成功", "API选择已成功更新！\n请注意：修改API后需要重启程序才能生效。")
+        except Exception as e:
+            QMessageBox.warning(self, "保存失败", f"无法保存API选择: {str(e)}")
 
     def get_luminance_img_value(self):
         try:
