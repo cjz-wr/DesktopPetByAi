@@ -1,7 +1,7 @@
 #  			DesktopPetByAi-你的智能桌面搭子
 
-Before the window, code weaves starry nights;                    					    ![开口](./gif/猫/开口.gif)<br>
 
+Before the window, code weaves starry nights;                       ![开口](./gif/猫/开口.gif)<br>
 On the screen, a digital pet chants with me.
 
 窗前代码织星夜，
