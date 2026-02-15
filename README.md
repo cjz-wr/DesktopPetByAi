@@ -66,7 +66,7 @@ On the screen, a digital pet chants with me.
 
 项目介绍网站:[DesktopPetByAi - 智能桌面宠物助手](https://cjz-wr.github.io/DesktopPetByAiWeb/)
 
-项目交流群&反馈:![QQ Group](https://img.shields.io/badge/QQ群-1082360650-orange?logo=tencent-qq&logoColor=white)
+项目交流群&反馈:1082360650![QQ Group](https://img.shields.io/badge/QQ群-1082360650-orange?logo=tencent-qq&logoColor=white)
 
 -----------
 
