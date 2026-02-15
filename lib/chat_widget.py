@@ -1,47 +1,75 @@
-import sys
+# import sys
+from email import message
+from importlib import reload
 import json, os
-from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog, QStyle, QButtonGroup, 
-                            QFrame, QVBoxLayout, QDoubleSpinBox, QSpinBox, QFileDialog, QTabBar, 
+from PyQt6.QtWidgets import (QApplication,
+                            QFrame, QVBoxLayout,  QFileDialog, QTabBar, 
                             QHBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QScrollArea,
                             QTextEdit, QDialogButtonBox, QMessageBox, QSplitter, QMenu, QSystemTrayIcon, QComboBox, QLineEdit, QCheckBox)
-from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread
-from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMetrics, QPen, QColor, 
-                         QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
+from PyQt6.QtCore import Qt,  pyqtSignal,  QThread
+from PyQt6.QtGui import ( QImage, QPixmap,  QColor, 
+                          QFont, QTextCursor, QTextCharFormat)
+import AiAPI
 import zhipu as zhipu
 import openai_api as openai_api  # 导入OpenAI API模块
 
 import lib.toVoice as toVoice
 import lib.toimg as toimg  # 导入图片生成库
-import logging, os
-import time,re
+import  os
+import re
 import lib.imgin as imgin
 import asyncio
-import threading
+import lib.LogManager
+import logging
 
 class AIWorker(QThread):
     """AI工作线程"""
     finished = pyqtSignal(str)  # 发送 AI 回复
     error = pyqtSignal(str)     # 发送错误信息
+    # 新增信号，用于流式输出
+    token_received = pyqtSignal(str)  # 发送单个token/片段
 
-    def __init__(self, messages, parent=None):
+    def __init__(self, messages, parent=None, stream_output=False):
         super().__init__(parent)
         self.messages = messages # AI 对话消息列表
+        self.stream_output = stream_output  # 是否使用流式输出
 
     def run(self):
         try:
             # 从配置文件中读取API提供商选择
-            try:
-                with open("demo_setting.json", "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                    api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-            except FileNotFoundError:
-                api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+            # try:
+            #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+            #         config = json.load(f)
+            #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+            # except FileNotFoundError:
+            #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+            ai_api = AiAPI.AiAPI()
+            if self.stream_output:
+                def callback(token):
+                    self.token_received.emit(token)
+                
+                reply = ai_api.get_ai_reply_stream(self.messages,callback)
+            else:
+                reply = ai_api.get_ai_reply_sync(self.messages)
 
             # 根据API提供商选择相应的API函数
-            if api_provider == "openai":
-                reply = openai_api.get_ai_reply_sync(self.messages)
-            else:
-                reply = zhipu.get_ai_reply_sync(self.messages)
+            # if api_provider == "openai":
+            #     if self.stream_output:
+            #         # 使用流式输出
+            #         def callback(token):
+            #             self.token_received.emit(token)
+            #         reply = openai_api.get_ai_reply_stream(self.messages, callback)
+            #     else:
+            #         reply = openai_api.get_ai_reply_sync(self.messages)
+            # else:
+            #     if self.stream_output:
+            #         # 使用流式输出
+            #         def callback(token):
+            #             self.token_received.emit(token)
+            #         reply = zhipu.get_ai_reply_stream(self.messages, callback)
+            #     else:
+            #         reply = zhipu.get_ai_reply_sync(self.messages)
                 
             self.finished.emit(reply)
         except Exception as e:
@@ -97,6 +125,9 @@ class ChatWidget(QWidget):
         super().__init__(parent)
         self.font_manager = font_manager
         self.init_ui()
+        lib.LogManager.init_logging()
+        self.logger = logging.getLogger(__name__)
+
         
     def init_ui(self):
         """初始化UI布局"""
@@ -326,18 +357,20 @@ class ChatWidget(QWidget):
     def load_conversation(self):
         """加载历史对话并显示在聊天区域"""
         # 从配置文件中读取API提供商选择
-        try:
-            with open("demo_setting.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-        except FileNotFoundError:
-            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
+        # try:
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
 
-        # 根据API提供商选择相应的加载函数
-        if api_provider == "openai":
-            messages = openai_api.load_conversation("default")
-        else:
-            messages = zhipu.load_conversation("default")
+        # # 根据API提供商选择相应的加载函数
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        # else:
+        #     messages = zhipu.load_conversation("default")
         
         for msg in messages:
             if msg['role'] == 'user':
@@ -382,18 +415,22 @@ class ChatWidget(QWidget):
                         else:
                             self.add_message("ICAT", "", is_user=False, image_path=imgPath)
                     else:
-                        # 检查是否包含IMAGE_PROMPT信息但图片不存在
-                        if "[IMAGE_PROMPT:" in content:
-                            # 提取提示词信息并显示
-                            prompt_match = re.search(r'\[IMAGE_PROMPT:\s*(.+?)\]', content)
-                            if prompt_match:
-                                prompt = prompt_match.group(1).strip()
-                                text_content = re.sub(r'\[IMAGE_PROMPT:\s*.+?\]', '', content).replace(f"[IMAGE_NAME: {reply_img}]", "").strip()
-                                self.add_message("ICAT", f"{text_content} (图片生成提示词: {prompt}) 图片文件未找到", is_user=False)
-                            else:
-                                self.add_message("ICAT", "抱歉，没有找到表情包呢", is_user=False)
+                        # 图片不存在，重新触发AI处理
+                        # 禁用发送按钮，防止重复发送
+                        self.send_button.setEnabled(False)
+                        self.input_edit.setEnabled(False)
+                        self.image_button.setEnabled(False)
+                        
+                        last_user_message = self.get_last_user_message()
+                        if last_user_message:
+                            self.process_text_only_message(last_user_message)
+                            return  # 提前返回，跳过方法结尾的按钮启用代码
                         else:
-                            self.add_message("ICAT", "抱歉，没有找到表情包呢", is_user=False)
+                            self.add_message("ICAT", "抱歉，无法找到相关信息", is_user=False)
+                            # 重新启用发送按钮
+                            self.send_button.setEnabled(True)
+                            self.input_edit.setEnabled(True)
+                            self.image_button.setEnabled(True)
                 else:
                     # 检查是否包含IMAGE_PROMPT但没有IMAGE_NAME（可能是生成失败的情况）
                     if "[IMAGE_PROMPT:" in content:
@@ -477,20 +514,22 @@ class ChatWidget(QWidget):
         
         # 加载现有对话并添加新消息
         # 从配置文件中读取API提供商选择
-        try:
-            with open("demo_setting.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-        except FileNotFoundError:
-            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+        ai_api = AiAPI.AiAPI()
+        ai_api.load_conversation("default")
+        # try:
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
 
-        # 根据API提供商选择相应的加载和保存函数
-        if api_provider == "openai":
-            messages = openai_api.load_conversation("default")
-            openai_api.save_conversation("default", messages + [message_data])
-        else:
-            messages = zhipu.load_conversation("default")
-            zhipu.save_conversation("default", messages + [message_data])
+        # # 根据API提供商选择相应的加载和保存函数
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        #     openai_api.save_conversation("default", messages + [message_data])
+        # else:
+        #     messages = zhipu.load_conversation("default")
+        #     zhipu.save_conversation("default", messages + [message_data])
     
     def GetAiByImg(self,img_path,text):
         # 先将用户消息（包括图片）添加到聊天区域
@@ -522,18 +561,20 @@ class ChatWidget(QWidget):
     def process_img_text_message(self, image_description, img_path, text):
         """处理图片和文本消息"""
         # 从配置文件中读取API提供商选择
-        try:
-            with open("demo_setting.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-        except FileNotFoundError:
-            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
+        # try:
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
 
-        # 根据API提供商选择相应的加载函数
-        if api_provider == "openai":
-            messages = openai_api.load_conversation("default")
-        else:
-            messages = zhipu.load_conversation("default")
+        # # 根据API提供商选择相应的加载函数
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        # else:
+        #     messages = zhipu.load_conversation("default")
         
         if text:
             # 既有图片又有文本
@@ -543,37 +584,43 @@ class ChatWidget(QWidget):
             messages.append({"role": "user", "content": f"**SEND*用户向你发送了一下内容的图片{image_description}"})
         
         # 根据API提供商选择相应的保存函数
-        if api_provider == "openai":
-            openai_api.save_conversation("default", messages)
-        else:
-            zhipu.save_conversation("default", messages)
+        # if api_provider == "openai":
+        #     openai_api.save_conversation("default", messages)
+        # else:
+        #     zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default",messages)
         
         # 更新之前的"正在分析图片"消息为AI正在思考
         for i in range(3):  # 移除之前的几行
             self.chat_history.undo()
         self.add_message("系统", "ICAT 正在思考...", is_user=False)
         
-        # 创建并启动AI工作线程
-        self.worker = AIWorker(messages)
+        # 创建并启动AI工作线程，启用流式输出
+        self.worker = AIWorker(messages, stream_output=True)
         self.worker.finished.connect(self.on_ai_reply_received)
         self.worker.error.connect(self.on_ai_error)
+        # 连接新信号以处理流式输出
+        self.worker.token_received.connect(self.on_token_received)
         self.worker.start()
     
     def process_message_with_image(self, image_description, input_text):
         """处理包含图片的消息"""
         # 从配置文件中读取API提供商选择
-        try:
-            with open("demo_setting.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-        except FileNotFoundError:
-            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+        # try:
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
 
-        # 根据API提供商选择相应的加载函数
-        if api_provider == "openai":
-            messages = openai_api.load_conversation("default")
-        else:
-            messages = zhipu.load_conversation("default")
+        # # 根据API提供商选择相应的加载函数
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        # else:
+        #     messages = zhipu.load_conversation("default")
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
+
         
         if input_text:
             # 既有图片又有文本
@@ -583,20 +630,23 @@ class ChatWidget(QWidget):
             messages.append({"role": "user", "content": f"*SEND*用户向你发送了一下内容的图片{image_description}"})
         
         # 根据API提供商选择相应的保存函数
-        if api_provider == "openai":
-            openai_api.save_conversation("default", messages)
-        else:
-            zhipu.save_conversation("default", messages)
+        # if api_provider == "openai":
+        #     openai_api.save_conversation("default", messages)
+        # else:
+        #     zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default",messages)
         
         # 更新之前的"正在分析图片"消息为AI正在思考
         for i in range(3):  # 移除之前的几行
             self.chat_history.undo()
         self.add_message("系统", "ICAT 正在思考...", is_user=False)
         
-        # 创建并启动AI工作线程
-        self.worker = AIWorker(messages)
+        # 创建并启动AI工作线程，启用流式输出
+        self.worker = AIWorker(messages, stream_output=True)
         self.worker.finished.connect(self.on_ai_reply_received)
         self.worker.error.connect(self.on_ai_error)
+        # 连接新信号以处理流式输出
+        self.worker.token_received.connect(self.on_token_received)
         self.worker.start()
     
     def start_analysis_and_ai_processing(self, image_description, input_text):
@@ -656,38 +706,56 @@ class ChatWidget(QWidget):
         """处理只有文本的消息"""
         # 构建消息
         # 从配置文件中读取API提供商选择
-        try:
-            with open("demo_setting.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-        except FileNotFoundError:
-            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+        # try:
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
 
-        # 根据API提供商选择相应的加载函数
-        if api_provider == "openai":
-            messages = openai_api.load_conversation("default")
-        else:
-            messages = zhipu.load_conversation("default")
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
+
+
+        # # 根据API提供商选择相应的加载函数
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        # else:
+        #     messages = zhipu.load_conversation("default")
         
         messages.append({"role": "user", "content": input_text})
         
         # 根据API提供商选择相应的保存函数
-        if api_provider == "openai":
-            openai_api.save_conversation("default", messages)
-        else:
-            zhipu.save_conversation("default", messages)
+        # if api_provider == "openai":
+        #     openai_api.save_conversation("default", messages)
+        # else:
+        #     zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default",messages)
         
         # 显示加载提示
         self.add_message("系统", "ICAT 正在思考...", is_user=False)
         
-        # 创建并启动AI工作线程
-        self.worker = AIWorker(messages)
+        # 创建并启动AI工作线程，启用流式输出
+        self.worker = AIWorker(messages, stream_output=True)
         self.worker.finished.connect(self.on_ai_reply_received)
         self.worker.error.connect(self.on_ai_error)
+        # 连接新信号以处理流式输出
+        self.worker.token_received.connect(self.on_token_received)
         self.worker.start()
     
+    def on_token_received(self, token):
+        """处理流式输出的单个token/片段"""
+        # 获取当前光标位置
+        cursor = self.chat_history.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertText(token)
+        # 滚动到底部
+        self.chat_history.verticalScrollBar().setValue(
+            self.chat_history.verticalScrollBar().maximum()
+        )
+
     def on_ai_reply_received(self, reply):
-        # 移除"AI正在思考"提示
+        # 移除"AI正在思考"提示（如果是流式输出，这个提示应该已经被替换了）
         # 计算需要撤销的次数，每次添加消息插入了多行内容
         for i in range(3):  # 对于添加消息时的几行内容
             self.chat_history.undo()
@@ -759,14 +827,23 @@ class ChatWidget(QWidget):
             # 获取生成的图片路径
             image_path = result.get("image_path", "")
             if image_path:
-                # 添加AI回复，包含图片
-                if original_reply != "":
-                    self.add_message("ICAT", original_reply, is_user=False, image_path=image_path)
+                # 提取原始文字内容，去除IMAGE_NAME和IMAGE_PROMPT标记
+                text_content = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+                text_content = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', text_content).strip()
+                
+                # 添加AI回复，包含原始文字内容和生成的图片
+                if text_content != "":
+                    self.add_message("ICAT", text_content, is_user=False, image_path=image_path)
+                    toVoice.TextToSpeech().speak_async(text_content)
                 else:
-                    self.add_message("ICAT", "", is_user=False, image_path=image_path)
+                    # 如果没有原始文字内容，则显示一个默认消息
+                    default_text = f"我已经为你生成了图片: {image_prompt or '图片'}"
+                    self.add_message("ICAT", default_text, is_user=False, image_path=image_path)
+                    toVoice.TextToSpeech().speak_async(default_text)
                 
                 # 保存AI回复到对话历史，包含图片生成的提示词信息
-                messages = zhipu.load_conversation("default")
+                # messages = zhipu.load_conversation("default")
+                messages = AiAPI.AiAPI().load_conversation("default")
                 # 在这里添加图片生成的提示词到记忆中
                 # 如果没有传入image_prompt，则尝试从original_reply中提取
                 if not image_prompt:
@@ -784,10 +861,21 @@ class ChatWidget(QWidget):
         else:
             # 图片生成失败，显示原始回复并添加错误信息
             error_msg = result.get("error", "未知错误")
-            self.add_message("ICAT", f"{original_reply}\n（图片生成失败：{error_msg}）", is_user=False)
+            
+            # 提取原始文字内容，即使图片生成失败也要显示
+            text_content = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+            text_content = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', text_content).strip()
+            
+            # 如果有原始文字内容，显示文字内容和错误信息
+            if text_content:
+                self.add_message("ICAT", f"{text_content}\n（图片生成失败：{error_msg}）", is_user=False)
+            else:
+                # 如果没有原始文字内容，只显示错误信息
+                self.add_message("ICAT", f"图片生成失败：{error_msg}", is_user=False)
             
             # 保存AI回复到对话历史，包含错误信息
-            messages = zhipu.load_conversation("default")
+            # messages = zhipu.load_conversation("default")
+            messages = AiAPI.AiAPI().load_conversation("default")
             # 即使生成失败，也要记录这次尝试
             # 如果没有传入image_prompt，则尝试从original_reply中提取
             if not image_prompt:
@@ -839,13 +927,32 @@ class ChatWidget(QWidget):
             if os.path.exists(imgPath):
                 #改为绝对路径
                 imgPath = os.path.abspath(imgPath)
-                print(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
+                # print(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
+                self.logger.debug(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
+
                 if reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip() != "":
                     self.add_message("ICAT", reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip(), is_user=False, image_path=imgPath)
+                    toVoice.TextToSpeech().speak_async(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
                 else:
                     self.add_message("ICAT", "", is_user=False, image_path=imgPath)
             else:
-                self.add_message("ICAT", "抱歉，没有找到表情包呢", is_user=False)
+                # 图片不存在，重新触发AI处理
+                # 禁用发送按钮，防止重复发送
+                self.send_button.setEnabled(False)
+                self.input_edit.setEnabled(False)
+                self.image_button.setEnabled(False)
+                                
+                last_user_message = self.get_last_user_message()
+                if last_user_message:
+                    self.process_text_only_message(last_user_message)
+                    # 不在这里启用按钮，而是让新触发的AI流程结束后处理按钮启用
+                    return  # 提前返回，跳过方法结尾的按钮启用代码
+                else:
+                    self.add_message("ICAT", "抱歉，无法找到相关信息", is_user=False)
+                    # 重新启用发送按钮
+                    self.send_button.setEnabled(True)
+                    self.input_edit.setEnabled(True)
+                    self.image_button.setEnabled(True)
         else:
             # 添加AI回复
             self.add_message("ICAT", reply, is_user=False)
@@ -855,20 +962,25 @@ class ChatWidget(QWidget):
         
         # 保存AI回复到对话历史
         # 从配置文件中读取API提供商选择
-        try:
-            with open("demo_setting.json", "r", encoding="utf-8") as f:
-                config = json.load(f)
-                api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
-        except FileNotFoundError:
-            api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+        # try:
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")  # 默认使用zhipu
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"  # 如果配置文件不存在，默认使用zhipu
+
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
+        ai_api.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
+        
 
         # 根据API提供商选择相应的加载和保存函数
-        if api_provider == "openai":
-            messages = openai_api.load_conversation("default")
-            openai_api.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
-        else:
-            messages = zhipu.load_conversation("default")
-            zhipu.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        #     openai_api.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
+        # else:
+        #     messages = zhipu.load_conversation("default")
+        #     zhipu.save_conversation("default", messages + [{"role": "assistant", "content": reply}])
 
         # 重新启用发送按钮
         self.send_button.setEnabled(True)
@@ -900,6 +1012,31 @@ class ChatWidget(QWidget):
                     break
         if main_window and hasattr(main_window, "refresh_gif"):
             main_window.refresh_gif()
+
+    def get_last_user_message(self):
+        """获取最后一条用户消息"""
+        # try:
+        #     # 从配置文件中读取API提供商选择
+        #     with open("demo_setting.json", "r", encoding="utf-8") as f:
+        #         config = json.load(f)
+        #         api_provider = config.get("api_provider", "zhipu")
+        # except FileNotFoundError:
+        #     api_provider = "zhipu"
+
+        # # 根据API提供商选择相应的加载函数
+        # if api_provider == "openai":
+        #     messages = openai_api.load_conversation("default")
+        # else:
+        #     messages = zhipu.load_conversation("default")
+
+        messages = AiAPI.AiAPI().load_conversation("default")
+        
+        # 从后往前查找最后一条用户消息
+        for msg in reversed(messages):
+            if msg['role'] == 'user':
+                return msg['content']
+        
+        return None
 
     def on_ai_error(self, error_msg):
         # 移除"AI正在思考"提示

@@ -1,0 +1,58 @@
+# 日志配置文件 logging.yaml
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  # 标准格式（可用于文件或非彩色控制台）未被使用
+  standard:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+  # 详细格式（包含文件名和行号，适合文件记录）
+  detailed:
+    format: '%(asctime)s [%(levelname)s] %(name)s (%(filename)s:%(lineno)d): %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+  # 彩色格式（仅用于控制台）
+  colored:
+    '()': colorlog.ColoredFormatter
+    format: '%(log_color)s%(asctime)s - %(levelname)-8s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+    log_colors:
+      DEBUG: cyan
+      INFO: green
+      WARNING: yellow
+      ERROR: red
+      CRITICAL: red,bg_white
+    # 可选：reset 和 secondary_log_colors 可使用默认值
+
+handlers:
+  # 控制台输出（使用彩色格式）
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: colored
+    stream: ext://sys.stdout
+
+  # 文件滚动输出（按天滚动，保留7天）
+  file_rotating:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: detailed
+    filename: logs/desktopPet.log          # 确保 logs 目录存在
+    when: midnight
+    interval: 1
+    backupCount: 7
+    encoding: utf-8
+    utc: false
+
+root:
+  level: DEBUG
+  handlers: [console, file_rotating]
+
+# 可选：为特定模块单独设置日志级别
+# loggers:
+#   myapp.database:
+#     level: WARNING
+#     handlers: [file_rotating]
+#     propagate: false

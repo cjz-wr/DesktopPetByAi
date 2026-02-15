@@ -36,6 +36,8 @@ class FontManager(QObject):
         point_size = font_dict.get("pointSize")
         if point_size and point_size > 0:
             font.setPointSize(point_size)
+        else:
+            font.setPointSize(12)  # 默认字体大小
         font.setBold(font_dict.get("bold", False))
         font.setItalic(font_dict.get("italic", False))
         font.setUnderline(font_dict.get("underline", False))
@@ -45,9 +47,13 @@ class FontManager(QObject):
 
     def to_dict(self):
         """将当前字体转为字典用于保存"""
+        point_size = self.font.pointSize()
+        # 确保pointSize是正数，如果是负数则使用默认值12
+        if point_size <= 0:
+            point_size = 12
         return {
             "family": self.font.family(),
-            "pointSize": self.font.pointSize(),
+            "pointSize": point_size,
             "bold": self.font.bold(),
             "italic": self.font.italic(),
             "underline": self.font.underline(),

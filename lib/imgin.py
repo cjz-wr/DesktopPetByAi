@@ -1,7 +1,8 @@
 import os
 import base64
 from zhipuai import ZhipuAI
-
+import lib.LogManager
+import logging,json
 
 async def analyze_image_with_ai(image_path, api_key=None, model="glm-4v-flash", prompt_text="请描述这张图片的内容"):
     """
@@ -12,8 +13,15 @@ async def analyze_image_with_ai(image_path, api_key=None, model="glm-4v-flash", 
     :param prompt_text: 提供给AI的提示文本
     :return: AI对图片的分析结果，如果出错则返回错误信息
     """
+    lib.LogManager.init_logging()
+    logger = logging.getLogger(__name__)
+
+    with open("demo_setting.json", "r", encoding="utf-8") as f:
+        config = json.load(f)
+        api_key = config.get("ai_key", None)
     if api_key is None:
-        api_key = "2f9aa59b1c404314833c10bff0d71f8b.r18TsE7fFcL8CSqz"
+        logger.critical("请提供有效的API密钥")
+        return "错误：请提供有效的API密钥"
 
     client = ZhipuAI(api_key=api_key)
 

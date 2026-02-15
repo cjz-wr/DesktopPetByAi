@@ -1,0 +1,11 @@
+demo_setting.json
+
+traningai/
+dist/
+build/
+__pycache__/
+webnew/
+Output/
+ai_memory/
+logs/
+

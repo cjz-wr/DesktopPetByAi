@@ -1,3 +1,10 @@
+'''
+lib.vertical_tab_widget 的 Docstring
+描述：
+该模块实现了一个自定义的垂直标签页组件 VerticalTabWidget，包含三个主要标签页：聊天、设置和帮助&关于。左侧为垂直排列的按钮，右侧为对应的堆叠页面。用户可以通过按钮切换不同的标签页。设置页面支持背景图片选择、透明度和亮度调整等功能，并保存用户配置。该组件还集成了字体管理器以支持动态字体更改。
+'''
+
+
 import sys
 import json, os
 from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog, QStyle, QButtonGroup, 
@@ -7,6 +14,8 @@ from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog,
 from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread
 from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMetrics, QPen, QColor, 
                          QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
+
+import zhipu as zhipu  # 导入zhipu模块以使用load_gif函数
 
 class VerticalTabBar(QTabBar):
     def __init__(self, parent=None):
@@ -518,6 +527,106 @@ class VerticalTabWidget(QWidget):
         line7.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
         scroll_layout.addWidget(line7)
 
+        # GIF文件夹选择区域
+        gif_group = QWidget()
+        gif_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
+        gif_layout = QVBoxLayout(gif_group)
+
+        gif_label = QLabel("<b style='color: black;'>GIF文件夹选择</b>")
+        if self.font_manager:
+            self.font_manager.register_widget(gif_label)
+        gif_layout.addWidget(gif_label)
+
+        # 获取gif文件夹下的所有子文件夹
+        self.gif_folder_combo = QComboBox()
+        self.gif_folder_combo.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        if self.font_manager:
+            self.font_manager.register_widget(self.gif_folder_combo)
+        gif_layout.addWidget(self.gif_folder_combo)
+
+        # 加载GIF文件夹选项
+        self.load_gif_folders()
+
+        # 保存GIF文件夹选择按钮
+        save_gif_folder_button = QPushButton("保存GIF文件夹选择")
+        save_gif_folder_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        save_gif_folder_button.clicked.connect(self.save_gif_folder_selection)
+        if self.font_manager:
+            self.font_manager.register_widget(save_gif_folder_button) # 注册按钮
+        gif_layout.addWidget(save_gif_folder_button) # 注册按钮
+
+        scroll_layout.addWidget(gif_group)
+
+        # 分隔线
+        line8 = QFrame()
+        line8.setFrameShape(QFrame.Shape.HLine)
+        line8.setFrameShadow(QFrame.Shadow.Sunken)
+        line8.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
+        scroll_layout.addWidget(line8)
+
+        # AI角色设定区域
+        prompt_group = QWidget()
+        prompt_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
+        prompt_layout = QVBoxLayout(prompt_group)
+
+        prompt_label = QLabel("<b style='color: black;'>AI角色设定</b>")
+        if self.font_manager:
+            self.font_manager.register_widget(prompt_label)
+        prompt_layout.addWidget(prompt_label)
+
+        self.prompt_edit = QTextEdit()
+        self.prompt_edit.setPlaceholderText("请输入新的AI角色设定...")
+        self.prompt_edit.setMaximumHeight(60)
+        self.prompt_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        if self.font_manager:
+            self.font_manager.register_widget(self.prompt_edit)
+        prompt_layout.addWidget(self.prompt_edit)
+
+        # 加载当前AI角色设定
+        self.load_prompt()
+
+        save_prompt_button = QPushButton("保存AI角色设定")
+        save_prompt_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        save_prompt_button.clicked.connect(self.save_prompt)
+        if self.font_manager:
+            self.font_manager.register_widget(save_prompt_button)
+        prompt_layout.addWidget(save_prompt_button)
+
+        scroll_layout.addWidget(prompt_group)
+
+        # 分隔线
+        line9 = QFrame()
+        line9.setFrameShape(QFrame.Shape.HLine)
+        line9.setFrameShadow(QFrame.Shadow.Sunken)
+        line9.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
+        scroll_layout.addWidget(line9)
+
+        # 添加打开prompt.txt文件的按钮
+        open_prompt_group = QWidget()
+        open_prompt_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
+        open_prompt_layout = QVBoxLayout(open_prompt_group)
+
+        open_prompt_label = QLabel("<b style='color: black;'>修改提示词</b>")
+        if self.font_manager:
+            self.font_manager.register_widget(open_prompt_label)
+        open_prompt_layout.addWidget(open_prompt_label)
+
+        open_prompt_btn = QPushButton("打开 prompt.txt 文件")
+        open_prompt_btn.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        open_prompt_btn.clicked.connect(self.open_prompt_file)
+        if self.font_manager:
+            self.font_manager.register_widget(open_prompt_btn)
+        open_prompt_layout.addWidget(open_prompt_btn)
+
+        scroll_layout.addWidget(open_prompt_group)
+
+        # 分隔线
+        line10 = QFrame()
+        line10.setFrameShape(QFrame.Shape.HLine)
+        line10.setFrameShadow(QFrame.Shadow.Sunken)
+        line10.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
+        scroll_layout.addWidget(line10)
+
         # 创建并注册选择字体按钮
         self.select_font_ = QPushButton("选择字体")
         self.select_font_.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")  # 半透明按钮
@@ -796,6 +905,125 @@ class VerticalTabWidget(QWidget):
             QMessageBox.information(self, "保存成功", "API选择已成功更新！\n请注意：修改API后需要重启程序才能生效。")
         except Exception as e:
             QMessageBox.warning(self, "保存失败", f"无法保存API选择: {str(e)}")
+
+    def load_gif_folders(self):
+        """加载gif文件夹下的所有子文件夹"""
+        import os
+        gif_path = "gif"
+        self.gif_folder_combo.clear()
+        
+        if os.path.exists(gif_path) and os.path.isdir(gif_path):
+            for item in os.listdir(gif_path):
+                item_path = os.path.join(gif_path, item)
+                if os.path.isdir(item_path):
+                    self.gif_folder_combo.addItem(item, item)
+        
+        # 添加默认选项
+        if self.gif_folder_combo.count() == 0:
+            self.gif_folder_combo.addItem("未找到GIF文件夹", "")
+        
+        # 加载当前选择
+        current_selection = self.data_setting.get("gif_folder", "蜡笔小新组")
+        # 移除路径前缀，只保留文件夹名称
+        if current_selection.startswith("gif/"):
+            current_folder = current_selection[4:]  # 移除"gif/"前缀
+        else:
+            current_folder = current_selection
+        
+        # 查找匹配项并设置当前索引
+        for i in range(self.gif_folder_combo.count()):
+            if self.gif_folder_combo.itemData(i) == current_folder:
+                self.gif_folder_combo.setCurrentIndex(i)
+                break
+
+    def save_gif_folder_selection(self):
+        """保存GIF文件夹选择"""
+        selected_folder = self.gif_folder_combo.currentData()
+        if selected_folder:
+            gif_folder_path = f"gif/{selected_folder}"
+            
+            # 读取现有设置
+            try:
+                with open("demo_setting.json", "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+            except FileNotFoundError:
+                settings = {}
+            
+            # 更新gif_folder设置
+            settings["gif_folder"] = gif_folder_path
+            
+            # 保存设置
+            with open("demo_setting.json", "w", encoding="utf-8") as f:
+                json.dump(settings, f, ensure_ascii=False, indent=4)
+
+            
+            #修改记忆可用的gif文件夹
+            zhipu.load_gif(dir_name=selected_folder)
+            messages = zhipu.load_conversation()
+            zhipu.save_conversation(identity="default", messages=messages)
+                
+            QMessageBox.information(self, "保存成功", f"GIF文件夹已设置为: {gif_folder_path}")
+        else:
+            QMessageBox.warning(self, "保存失败", "请选择一个有效的GIF文件夹")
+
+    def load_prompt(self):
+        """从prompt.txt文件中加载当前AI角色设定"""
+        try:
+            with open("prompt.txt", "r", encoding="utf-8") as f:
+                prompt = f.read()
+            self.prompt_edit.setText(prompt)
+        except FileNotFoundError:
+            self.prompt_edit.setPlaceholderText("未找到prompt.txt文件，请输入...")
+        except Exception as e:
+            QMessageBox.warning(self, "加载失败", f"无法加载AI角色设定: {str(e)}")
+            self.prompt_edit.setPlaceholderText("加载失败，请输入...")
+
+    def save_prompt(self):
+        """保存AI角色设定到prompt.txt文件"""
+        new_prompt = self.prompt_edit.toPlainText().strip()
+        if not new_prompt:
+            QMessageBox.warning(self, "输入错误", "AI角色设定不能为空！")
+            return
+
+        try:
+            # 保存到prompt.txt文件
+            with open("prompt.txt", "w", encoding="utf-8") as f:
+                f.write(new_prompt)
+
+            # 同时保存到zhipu模块的prompt缓存
+            import zhipu
+            zhipu.save_prompt(new_prompt)
+
+            # 重置对话以应用新的提示词
+            messages = zhipu.load_conversation()
+            zhipu.save_conversation(identity="default", messages=messages)
+
+            QMessageBox.information(self, "保存成功", "AI角色设定已成功更新！\n请注意：修改角色设定后可能需要重启程序或开始新对话才能完全生效。")
+        except Exception as e:
+            QMessageBox.warning(self, "保存失败", f"无法保存AI角色设定: {str(e)}")
+
+    def open_prompt_file(self):
+        """打开prompt.txt文件以便用户直接编辑"""
+        import subprocess
+        import os
+        prompt_path = "prompt.txt"
+        
+        # 如果文件不存在，先创建一个带有默认内容的文件
+        if not os.path.exists(prompt_path):
+            default_prompt = "你叫丫丫，18岁女生，是个人,性格有趣且是否热情，回复要简短自然带点幽默"
+            with open(prompt_path, "w", encoding="utf-8") as f:
+                f.write(default_prompt)
+        
+        try:
+            # 尝试使用系统默认编辑器打开文件
+            if os.name == 'nt':  # Windows系统
+                os.startfile(prompt_path)
+            elif os.name == 'posix':  # macOS或Linux
+                subprocess.call(('open' if sys.platform == 'darwin' else 'xdg-open', prompt_path))
+            
+            QMessageBox.information(self, "文件已打开", f"已在系统默认编辑器中打开 {prompt_path} \n编辑完成后记得保存文件。\n重启程序以应用更改。")
+        except Exception as e:
+            QMessageBox.warning(self, "打开失败", f"无法打开prompt.txt文件: {str(e)}\n您可以手动找到该文件进行编辑。")
 
     def get_luminance_img_value(self):
         try:

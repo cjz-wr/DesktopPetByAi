@@ -12,6 +12,11 @@ import re
 import subprocess
 import base64
 import html  # 用于处理HTML实体转义
+import logging
+import lib.LogManager
+
+lib.LogManager.init_logging()
+logger = logging.getLogger(__name__)
 
 try:
     # 从demo_setting.json加载配置
@@ -20,7 +25,7 @@ try:
         API_KEY = config.get("ai_key", "")
         MODEL = config.get("model", "glm-4.6v")  # 默认使用视觉模型
 except FileNotFoundError:
-    print("未找到demo_setting.json文件，请检查文件是否存在")
+    logger.warning("未找到demo_setting.json文件，请检查文件是否存在")
     API_KEY = ""
     MODEL = "glm-4.6v"
 
@@ -34,8 +39,17 @@ def _get_lock(identity):
     return _save_locks[identity]
 
 
-def load_gif():
-    folder_path = "gif/蜡笔小新组"
+def load_gif(gif_folder=None):
+    # 从配置中获取GIF文件夹路径，如果没有指定则使用默认值
+    if gif_folder is None:
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+                gif_folder = config.get("gif_folder", "gif/蜡笔小新组")
+        except FileNotFoundError:
+            gif_folder = "gif/蜡笔小新组"
+    
+    folder_path = gif_folder
     GifList = []
     try:
         with os.scandir(folder_path) as entries:
@@ -47,9 +61,9 @@ def load_gif():
                         # "path": os.path.join(folder_path, entry.name)
                     })
     except FileNotFoundError:
-        print(f"文件夹 '{folder_path}' 不存在。")
+        logger.error(f"文件夹 '{folder_path}' 不存在。")
     except PermissionError:
-        print(f"没有权限访问文件夹 '{folder_path}'。")
+        logger.error("没有权限访问文件夹")
     return GifList
 
 def load_img():
@@ -65,9 +79,9 @@ def load_img():
                         # "path": os.path.join(folder_path, entry.name)
                     })
     except FileNotFoundError:
-        print(f"文件夹 '{folder_path}' 不存在。")
+        logger.error(f"文件夹 '{folder_path}' 不存在。")
     except PermissionError:
-        print(f"没有权限访问文件夹 '{folder_path}'。")
+        logger.error(f"没有权限访问文件夹 '{folder_path}'")
     return ImgList
 
 def encode_image(image_path):
@@ -78,7 +92,7 @@ def encode_image(image_path):
         with open(image_path, "rb") as image_file:
             return base64.b64encode(image_file.read()).decode('utf-8')
     except Exception as e:
-        print(f"图像编码失败: {e}")
+        logger.error(f"图像编码失败: {e}")
         return None
 
 def load_conversation_with_image(identity="default"):
@@ -93,7 +107,7 @@ def load_conversation_with_image(identity="default"):
             with open(filename, 'r', encoding='utf-8') as f:
                 return json.load(f)
     except (json.JSONDecodeError, IOError) as e:
-        print(f"加载历史记录失败: {e}")
+        logger.error(f"加载历史记录失败: {e}")
     
     use_cmd = (
         "如果需要让助手执行Windows命令，必须严格用如下格式输出：[USE_cmd:你的命令]，"
@@ -111,7 +125,7 @@ def load_conversation_with_image(identity="default"):
         "4.如果没有找到，就在公共用户的桌面这个路径下找，即用户再次询问打开某个软件时"
     )
     respon = "你叫丫丫，18岁女生，是个人,性格有趣且是否热情，回复要简短自然带点幽默。你在windows聊天,是一个windows系统助手。你可以使用gif表达情感。注意：你所有的回答中都必须包含一个gif文件，且只能有这个。你还须了解你可以使用的gif文件。不能仅有gif文件，而没有文字"
-    HowUseGif = "使用gif的格式为[GIF:文件名],例如[GIF:走路]"
+    HowUseGif = "使用gif的格式为[GIF:文件名],例如[GIF:闭眼]"
     HowSendImg = "如果你需要发送表情包，请严格使用如下格式输出：[IMAGE_NAME: 图片文件名]，中括号和冒号都不能省略，图片文件名必须是存在于图片目录下的文件，否则无法发送图片。表情包并非必须每次都发送，只有在合适的情况下才发送。"
     return [{"role": "system", "content": f"{respon},{use_cmd},{open_app},{HowUseGif},可用的gif有{GifList},{HowSendImg},可用的图片有{ImgList}。"}]
 
@@ -123,7 +137,7 @@ def save_conversation(identity, messages):
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(messages, f, ensure_ascii=False, indent=2)
         except IOError as e:
-            print(f"保存对话失败: {e}")
+            logger.error(f"保存对话失败: {e}")
 
 def write_code_file(file_path, code_content):
     """将给定的内容写入指定文件路径，使用UTF-8编码"""
@@ -181,6 +195,7 @@ def get_ai_vision_reply_stream(text_content, image_path=None, callback=None):
                     callback(content_part)
                 else:
                     print(content_part, end='', flush=True)  # 实时打印流式输出
+
         
         print()  # 换行
         
@@ -190,10 +205,10 @@ def get_ai_vision_reply_stream(text_content, image_path=None, callback=None):
 
         # 判断matches_filename是否为空
         if not matches_filename:
-            print("未找到GIF文件名")
-            matches_filename = ["走路"]
+            logger.warning("未找到GIF文件名")
+            matches_filename = ["闭眼"]
 
-        print("仅文件名:", matches_filename[0].replace(".gif", ""))
+        logger.warning("GIF文件名:", matches_filename[0].replace(".gif", ""))
 
         # 移除GIF标记
         reply_without_gif = reply.replace(f"[GIF:{matches_filename[0]}]", "")
@@ -202,9 +217,9 @@ def get_ai_vision_reply_stream(text_content, image_path=None, callback=None):
         try:
             with open("demo_setting.json", "r", encoding="utf-8") as f:
                 demo_setting = json.load(f)
-                print("读取到的demo_setting:", demo_setting)
+                logger.info("读取到的demo_setting:", demo_setting)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"读取demo_setting.json失败: {e}")
+            logger.error(f"读取demo_setting.json失败: {e}")
 
         # 往读取到的demo_setting里添加gif键值对
         demo_setting["gif"] = matches_filename[0].replace(".gif", "") + ".gif"

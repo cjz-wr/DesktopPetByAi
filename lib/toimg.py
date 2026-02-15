@@ -5,7 +5,7 @@ import requests
 from pathlib import Path
 from zhipuai import ZhipuAI
 import logging
-import time
+# import time
 from datetime import datetime
 
 # 注意：此处假设你已通过 `pip install zhipuai` 安装了官方SDK

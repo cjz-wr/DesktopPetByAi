@@ -4,12 +4,9 @@ from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog,
                             QFrame, QVBoxLayout, QDoubleSpinBox, QSpinBox, QFileDialog, QTabBar, 
                             QHBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QScrollArea,
                             QTextEdit, QDialogButtonBox, QMessageBox, QSplitter, QMenu, QSystemTrayIcon, QComboBox, QLineEdit)
-from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread
-from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMetrics, QPen, QColor, 
-                         QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
+
 import zhipu as zhipu
 
-import lib.toVoice as toVoice
 
 # 导入拆分后的模块
 from lib.chat_widget import ChatWidget, AIWorker

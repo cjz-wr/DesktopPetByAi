@@ -1,16 +1,22 @@
-import sys
-import json, os
-from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog, QStyle, QButtonGroup, 
-                            QFrame, QVBoxLayout, QDoubleSpinBox, QSpinBox, QFileDialog, QTabBar, 
-                            QHBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QScrollArea,
-                            QTextEdit, QDialogButtonBox, QMessageBox, QSplitter, QMenu, QSystemTrayIcon, QComboBox, QLineEdit)
-from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread
-from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMetrics, QPen, QColor, 
-                         QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
+# import sys
+# import json, os
+from PyQt6.QtWidgets import (QApplication,QDialog, QStyle,
+                            QVBoxLayout,
+                            QHBoxLayout, QLabel, QPushButton, QWidget, 
+                            )
+from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, QRect
+from PyQt6.QtGui import (QMouseEvent, QPainter, QImage, QPixmap, QColor, 
+                         QPainterPath)
+
+import lib.LogManager as LogManager
+import logging
 
 class CustomDialog(QDialog):
     def __init__(self, font_manager=None):
         super().__init__()
+
+        LogManager.init_logging()
+        self.logger = logging.getLogger(__name__)
 
         self.font_manager = font_manager
         self.window_t = False  # 定义窗口是否是最大化
@@ -195,7 +201,9 @@ class CustomDialog(QDialog):
         """ 加载并处理图像透明度 """
         image = QImage(path)
         if image.isNull():
-            print("无法加载图片")
+            # print("无法加载图片")
+            self.logger.error("无法加载图片")
+            
             return QPixmap()
         
         # 调整图片大小以匹配窗口尺寸
