@@ -1,6 +1,5 @@
 #  			DesktopPetByAi-你的智能桌面搭子
 
-
 Before the window, code weaves starry nights;                       ![开口](./gif/猫/开口.gif)<br>
 On the screen, a digital pet chants with me.
 
@@ -46,13 +45,12 @@ On the screen, a digital pet chants with me.
    python main.py
    ```
 
-   这样，你就安装好了必备的安装包
 
 ### 	配置你的ai
 
 ​		**该项目默认是不配置ai的**，如果你需要调用但是又不清楚可以按下面流程来配置
 
-​		你如果需要一个免费的ai，则可以到https://open.bigmodel.cn/console/modelcenter/square上注册一个账号，去获取一个ai key,		在他们里面会有一个免费的ai可以用(注:后面的设置里面有两个模型接口选择，如果使用这个这里要选择智谱的接口)
+​		你如果需要一个免费的ai，则可以到 https://open.bigmodel.cn/console/modelcenter/square上注册一个账号，去获取一个ai key,		在他们里面会有一个免费的ai可以用(注:后面的设置里面有两个模型接口选择，如果使用这个这里要选择智谱的接口)
 
 ​		你如果想要使用本地的ai模型，则需要你的本地模型支持openai api接口
 
@@ -74,3 +72,8 @@ On the screen, a digital pet chants with me.
 
 在使用该项目时注意该项目的协议，请在协议规定范围内使用
 
+-------------
+
+## 其它
+
+​	**目前仍然在优化中**
