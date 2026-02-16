@@ -52,6 +52,8 @@ On the screen, a digital pet chants with me.
 
 ​		你如果需要一个免费的ai，则可以到 https://open.bigmodel.cn/console/modelcenter/square上注册一个账号，去获取一个ai key,		在他们里面会有一个免费的ai可以用(注:后面的设置里面有两个模型接口选择，如果使用这个这里要选择智谱的接口)
 
+​		当然如果你有支持openai api的ai也可以接到里面去使用
+
 ​		你如果想要使用本地的ai模型，则需要你的本地模型支持openai api接口
 
 ​		当你获取好ai 的key这些必要的东西后，在系统托盘右键 → 打开“设置”，配置你的 AI Key(注意在里面选择你的模型接口)
