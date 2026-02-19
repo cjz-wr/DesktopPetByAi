@@ -13,7 +13,7 @@ import json
 from datetime import datetime
 
 import AiAPI
-import zhipu as zhipu
+# 移除了对zhipu的直接导入
 import openai_api
 from settingwindow import CustomDialog,FontManager
 import logging
@@ -43,11 +43,9 @@ class AIWorker(QThread):
 
     def run(self):
         try:
-            # 使用异步方式获取AI回复
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            reply = loop.run_until_complete(zhipu.get_ai_reply(self.messages))
-            loop.close()
+            # 使用异步方式获取AI回复，现在统一使用OpenAI兼容接口
+            ai_api = AiAPI.AiAPI()
+            reply = asyncio.run(ai_api.get_ai_reply(self.messages))
             self.finished.emit(reply)
         except Exception as e:
             self.error.emit(str(e))
@@ -189,12 +187,14 @@ class ChatDialog(QDialog):
             self.logger.info("已创建demo_setting.json文件")
         #检测ai_memory文件夹是否存在
         if not os.path.exists("ai_memory"):
-            os.mkdir("ai_memory")
+            os.makedirs("ai_memory", exist_ok=True)
             self.logger.info("已创建ai_memory文件夹")
     
     def load_conversation(self):
         """加载历史对话并显示在聊天区域"""
-        messages = zhipu.load_conversation("default")
+        # 使用AiAPI加载对话历史
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
         for msg in messages:
             if msg['role'] == 'user':
                 self.add_message("你", msg['content'], is_user=True)
@@ -250,9 +250,10 @@ class ChatDialog(QDialog):
         self.add_message("你", input_text, is_user=True)
         
         # 构建消息
-        messages = zhipu.load_conversation("default")
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
         messages.append({"role": "user", "content": input_text})
-        zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default", messages)
         
         # 禁用发送按钮，防止重复发送
         self.send_button.setEnabled(False)
@@ -279,9 +280,10 @@ class ChatDialog(QDialog):
         self.add_message("ICAT", reply, is_user=False)
         
         # 保存对话
-        messages = zhipu.load_conversation("default")
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
         messages.append({"role": "assistant", "content": reply})
-        zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default", messages)
 
         # 重新启用发送按钮
         self.send_button.setEnabled(True)

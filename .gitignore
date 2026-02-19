@@ -1,4 +1,5 @@
 demo_setting.json
+mcp_config.json
 
 traningai/
 dist/
@@ -8,4 +9,5 @@ webnew/
 Output/
 ai_memory/
 logs/
-
+.vscode/
+.idea/

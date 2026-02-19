@@ -1,14 +1,24 @@
 import json
 import asyncio,os,re
 import threading,subprocess,html
-from zhipu import ZhipuAI
 from openai import OpenAI 
 import lib.LogManager as LogManager
 import logging
+from typing import Optional, Dict, Any
+# MCP相关导入
+from lib.mcp_manager import MCPManager
 '''
 AiAPI类
 描述：AiAPI类用于处理与AI相关的功能，如获取AI回复、保存会话等。
+支持MCP工具调用功能
 '''
+
+try:
+    from lib.mcp_manager import MCPManager, create_mcp_manager
+    MCP_ENABLED = True
+except ImportError:
+    MCP_ENABLED = False
+    logging.warning("MCP管理器未找到，MCP功能将不可用")
 
 
 class AiAPI:
@@ -27,6 +37,11 @@ class AiAPI:
         self.LoadSetting()
         self.selectAi()
         
+        # 初始化MCP管理器
+        self.mcp_manager: Optional[MCPManager] = None
+        self.mcp_enabled = False
+        self.initialize_mcp()
+        
         
 
     #用于加载配置文件
@@ -34,39 +49,121 @@ class AiAPI:
         try:
             with open("demo_setting.json","r",encoding="utf-8") as f:
                 self.config = json.load(f)
-                self.which_ai = self.config.get("api_provider","zhipu")
-                if self.which_ai == "zhipu":
-                    self.API_KEY = self.config.get("ai_key","")
-                    self.MODEL = self.config.get("model","glm-4-flash-250414")
-                else:
-                    self.API_KEY = self.config.get("openai_key", "")  # 使用openai_key字段
-                    self.BASE_URL = self.config.get("openai_base_url", "https://api.openai.com/v1")  # 支持自定义base_url
-                    self.MODEL = self.config.get("openai_model", "gpt-3.5-turbo")  # 使用openai_model字段
+                
+                # 智能配置迁移：自动将旧格式转换为OpenAI格式
+                migrated = False
+                if "ai_key" in self.config and "openai_key" not in self.config:
+                    self.config["openai_key"] = self.config["ai_key"]
+                    self.config["openai_base_url"] = self.config.get("base_url", "https://open.bigmodel.cn/api/paas/v4/")
+                    self.config["openai_model"] = self.config.get("model", "glm-4-flash")
+                    migrated = True
+                    self.logger.info("检测到旧配置格式，已自动迁移到OpenAI兼容格式")
+                
+                # 处理 api_provider 字段
+                if "api_provider" in self.config:
+                    del self.config["api_provider"]
+                    migrated = True
+                    self.logger.info("已移除旧的 api_provider 字段")
+                
+                # 强制使用OpenAI模式，移除智谱AI支持
+                self.which_ai = "openai"
+                self.API_KEY = self.config.get("openai_key", "")  # 使用openai_key字段
+                self.BASE_URL = self.config.get("openai_base_url", "https://api.openai.com/v1")  # 支持自定义base_url
+                self.MODEL = self.config.get("openai_model", "gpt-3.5-turbo")  # 使用openai_model字段
+                
+                # 如果进行了迁移，保存更新后的配置
+                if migrated:
+                    with open("demo_setting.json", "w", encoding="utf-8") as f_out:
+                        json.dump(self.config, f_out, ensure_ascii=False, indent=2)
+                    self.logger.info("配置文件已更新并保存")
+                    
         except FileNotFoundError:
-            # print("未找到demo_setting.json文件，请检查文件是否存在")
-            self.logger.warning("未找到demo_setting.json文件，请检查文件是否存在")
-            self.which_ai == "zhipu"
-            if self.which_ai == "zhipu":
-                self.API_KEY = ""
-                self.MODEL = "glm-4-flash-250414"
-            else:
-                self.API_KEY = ""
-                self.BASE_URL = "https://api.openai.com/v1"
-                self.MODEL = "gpt-3.5-turbo"
+            self.logger.warning("未找到demo_setting.json文件，正在创建默认配置文件...")
+            # 创建默认配置
+            self.config = {
+                "model": "gpt-3.5-turbo",
+                "background_path": "",
+                "transparency_img": 1.0,
+                "luminance_img": 128,
+                "gif_folder": "gif/蜡笔小新组",
+                "openai_key": "",
+                "openai_base_url": "https://api.openai.com/v1",
+                "openai_model": "gpt-3.5-turbo",
+                "api_type": "openai"
+            }
+            
+            # 保存默认配置文件
+            try:
+                with open("demo_setting.json", "w", encoding="utf-8") as f:
+                    json.dump(self.config, f, ensure_ascii=False, indent=2)
+                self.logger.info("默认配置文件已创建")
+            except Exception as e:
+                self.logger.error(f"创建配置文件失败: {e}")
+            
+            # 设置默认值
+            self.which_ai = "openai"
+            self.API_KEY = ""
+            self.BASE_URL = "https://api.openai.com/v1"
+            self.MODEL = "gpt-3.5-turbo"
+            self.logger.info("程序将在无AI功能模式下运行，请在设置中配置API密钥")
     
     
 
 
+    def initialize_mcp(self):
+        """初始化MCP功能"""
+        if not MCP_ENABLED:
+            self.logger.info("MCP功能未启用")
+            return
+            
+        try:
+            # 在后台初始化MCP管理器
+            def init_mcp_sync():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    self.mcp_manager = loop.run_until_complete(create_mcp_manager())
+                    self.mcp_enabled = True
+                    self.logger.info("MCP管理器初始化成功")
+                except Exception as e:
+                    self.logger.error(f"MCP管理器初始化失败: {e}")
+                finally:
+                    loop.close()
+            
+            # 使用线程避免阻塞主线程
+            mcp_thread = threading.Thread(target=init_mcp_sync, daemon=True)
+            mcp_thread.start()
+            
+        except Exception as e:
+            self.logger.error(f"MCP初始化异常: {e}")
+    
+    def get_mcp_tools(self) -> list:
+        """获取MCP工具列表（用于OpenAI工具调用）"""
+        if not self.mcp_enabled or not self.mcp_manager:
+            return []
+        return self.mcp_manager.get_tools_for_openai()
+    
+    async def call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
+        """调用MCP工具"""
+        if not self.mcp_enabled or not self.mcp_manager:
+            return None
+        return await self.mcp_manager.call_tool(tool_name, arguments)
     def selectAi(self):
-        if self.which_ai == "zhipu":
-            self.client = ZhipuAI(api_key=self.API_KEY)
-            return "zhipu"
-        else:
-            self.client = OpenAI(
-                api_key=self.API_KEY,
-                base_url=self.BASE_URL
-            )
-            return "openai"
+        """选择AI提供商"""
+        # 只支持OpenAI模式
+        self.client = OpenAI(
+            api_key=self.API_KEY,
+            base_url=self.BASE_URL
+        )
+        return "openai"
+        
+    async def init_mcp_connections(self):
+        """初始化MCP连接"""
+        return await self.mcp_manager.initialize()
+    
+    async def close_mcp_connections(self):
+        """关闭MCP连接"""
+        await self.mcp_manager.close()
         
     
     def _get_lock(self,identity):
@@ -96,10 +193,14 @@ class AiAPI:
         '''
         # 从配置中获取GIF文件夹路径，如果没有指定则使用默认值
         if gif_folder is None:
+            # 确保config属性存在
+            if not hasattr(self, 'config'):
+                self.config = {}
+            
             try:
-                self.config.get("gif_folder", f"gif/{dir_name}")
-            except FileNotFoundError:
-                self.gif_folder = f"gif/{dir_name}"
+                gif_folder = self.config.get("gif_folder", f"gif/{dir_name}")
+            except Exception:
+                gif_folder = f"gif/{dir_name}"
 
         folder_path = gif_folder
         GifList = []
@@ -199,6 +300,11 @@ class AiAPI:
 
         GifList = self.load_gif()
         ImgList = self.load_img()
+        
+        # 确保ai_memory目录存在
+        from lib.utils import ensure_ai_memory_directory
+        ai_memory_dir = ensure_ai_memory_directory()
+        
         filename = f"ai_memory/memory_{identity}.json"
         
         
@@ -210,8 +316,8 @@ class AiAPI:
         )
         open_app = (
             "如果需要打开程序,直接在桌面的路径下找软件的快捷方式，并打开指定的软件"
-            '例如 C:\path\to\your\shortcut.lnk'
-            "要严格尊守格式：[USE_cmd: C:\path\to\your\shortcut.lnk]"
+            '例如 C:\\\\path\\\\to\\\\your\\\\shortcut.lnk'
+            "要严格尊守格式：[USE_cmd: C:\\\\path\\\\to\\\\your\\\\shortcut.lnk]"
             "注意:1.用户默认的用户名是Administrator,如果没有找到就询问,以上内容都要严格遵守"
             "2.对于中国软件商开发的软件，默认在公共用户的桌面下找"
             "3.对于微信则根据用户语言确定微信名,例如是中文的话就是微信，英文则是WeChat"
@@ -250,6 +356,10 @@ class AiAPI:
         :param messages: 表示对话记录，是一个列表，每个元素是一个字典，包含"role"和"content"字段
         解释: 保存对话记录
         '''
+        # 确保ai_memory目录存在
+        from lib.utils import ensure_ai_memory_directory
+        ai_memory_dir = ensure_ai_memory_directory()
+        
         filename = f"ai_memory/memory_{identity}.json"
         lock = self._get_lock(identity)
         with lock:
@@ -420,7 +530,7 @@ class AiAPI:
                 
                 # 再次请求AI
                 response2 = self.client.chat.completions.create(
-                    model=self.SMODEL,
+                    model=self.MODEL,
                     messages=messages,
                     stream=False  # 第二次请求不使用流式输出
                 )
@@ -434,6 +544,97 @@ class AiAPI:
 
 
 
+
+    def _handle_tool_calls(self, messages: list, tool_calls, initial_reply: str) -> str:
+        """处理工具调用"""
+        # 添加初始回复到消息历史
+        if initial_reply:
+            messages.append({
+                "role": "assistant", 
+                "content": initial_reply
+            })
+        
+        # 处理每个工具调用
+        for tool_call in tool_calls:
+            func_name = tool_call.function.name
+            try:
+                func_args = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError:
+                func_args = {}
+            
+            self.logger.info(f"调用工具: {func_name} 参数: {func_args}")
+            
+            # 调用MCP工具
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                tool_result = loop.run_until_complete(
+                    self.call_mcp_tool(func_name, func_args)
+                )
+            finally:
+                loop.close()
+            
+            if tool_result is None:
+                tool_result = f"工具 {func_name} 调用失败"
+            
+            # 将工具结果添加到消息历史
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": tool_result
+            })
+        
+        # 再次请求AI，让其基于工具结果生成回复
+        try:
+            response2 = self.client.chat.completions.create(
+                model=self.MODEL,
+                messages=messages,
+                stream=False
+            )
+            if hasattr(response2, "choices") and response2.choices:
+                final_reply = response2.choices[0].message.content
+                return self._post_process_reply(final_reply or "")
+            return "AI接口无有效回复(工具调用后)"
+        except Exception as e:
+            return f"AI请求失败(工具调用后): {e}"
+    
+    def _post_process_reply(self, reply: str) -> str:
+        """后处理AI回复"""
+        #提取gif
+        pattern_filename = r'\[GIF:([^\]]+)\]'
+        matches_filename = re.findall(pattern_filename, reply)
+
+        #判断matches_filename是否为空
+        if not matches_filename:
+            self.logger.warning("未找到GIF文件名")
+            matches_filename = ["走路"]
+
+        self.logger.warning(f"仅文件名: {matches_filename[0].replace('.gif', '')}")
+
+        # 移除GIF标记
+        reply = reply.replace(f"[GIF:{matches_filename[0]}]", "")
+
+        #去除空格
+        reply = reply.strip()
+
+        #读取demo_setting.json
+        try:
+            with open("demo_setting.json", "r", encoding="utf-8") as f:
+                demo_setting = json.load(f)
+                self.logger.debug(f"读取到的demo_setting:{demo_setting}")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.logger.error(f"读取demo_setting.json失败: {e}")
+
+        #往读取到的demo_setting里添加gif键值对
+        demo_setting["gif"] = matches_filename[0].replace(".gif", "")+".gif"
+
+        #保存到demo_setting.json
+        with open("demo_setting.json", "w", encoding="utf-8") as f:
+            json.dump(demo_setting, f, ensure_ascii=False, indent=2)
+            self.logger.info("已保存到demo_setting.json")
+        
+        return reply
 
     def get_ai_reply_sync(self,messages):
         """同步方式获取AI回复,返回字符串。自动处理[SEARCH_MCP:xxx]指令"""
@@ -573,15 +774,125 @@ class AiAPI:
                         return response2.choices[0].message.content
                     return "AI接口无有效回复(二次)"
                 return reply
+                return reply
             return "AI接口无有效回复"
         except Exception as e:
             return f"AI请求失败: {e}"
 
     
-    async def get_ai_reply(self,messages):
-        """异步方式获取AI回复,返回字符串"""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.get_ai_reply_sync, messages)
+    async def get_ai_reply_with_mcp(self, messages):
+        """支持MCP工具调用的AI回复方法"""
+        # 确保MCP连接已初始化
+        if not self.mcp_manager.is_initialized():
+            initialized = await self.init_mcp_connections()
+            if not initialized:
+                # MCP不可用时回退到普通模式
+                return await self.get_ai_reply(messages)
+        
+        try:
+            # 构造包含MCP工具的请求
+            request_params = {
+                "model": self.MODEL,
+                "messages": messages,
+                "stream": True
+            }
+            
+            # 如果有MCP工具，添加到请求中
+            openai_tools = self.mcp_manager.get_openai_tools()
+            if openai_tools:
+                request_params["tools"] = openai_tools
+                request_params["tool_choice"] = "auto"
+            
+            # 发起流式请求
+            response = self.client.chat.completions.create(**request_params)
+            
+            collected_content = ""
+            collected_tool_calls = {}
+            finish_reason = None
+            
+            async for chunk in response:
+                choice = chunk.choices[0]
+                delta = choice.delta
+                finish_reason = choice.finish_reason
+                
+                # 处理普通内容
+                if delta.content:
+                    collected_content += delta.content
+                    
+                # 处理工具调用
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in collected_tool_calls:
+                            collected_tool_calls[idx] = {
+                                "id": None,
+                                "function": {"name": "", "arguments": ""}
+                            }
+                        if tc_delta.id:
+                            collected_tool_calls[idx]["id"] = tc_delta.id
+                        if tc_delta.function.name:
+                            collected_tool_calls[idx]["function"]["name"] = tc_delta.function.name
+                        if tc_delta.function.arguments:
+                            collected_tool_calls[idx]["function"]["arguments"] += tc_delta.function.arguments
+                            
+                # 遇到finish_reason表示本轮生成结束
+                if finish_reason:
+                    break
+            
+            # 构建本轮助手消息
+            assistant_msg = {
+                "role": "assistant",
+                "content": collected_content
+            }
+            
+            # 处理工具调用
+            if collected_tool_calls:
+                tool_calls_list = []
+                for idx in sorted(collected_tool_calls.keys()):
+                    tc = collected_tool_calls[idx]
+                    tool_calls_list.append({
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {
+                            "name": tc["function"]["name"],
+                            "arguments": tc["function"]["arguments"]
+                        }
+                    })
+                assistant_msg["tool_calls"] = tool_calls_list
+                
+                # 执行工具调用
+                for tool_call in tool_calls_list:
+                    func_name = tool_call["function"]["name"]
+                    try:
+                        func_args = json.loads(tool_call["function"]["arguments"])
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"工具参数解析失败: {e}")
+                        continue
+                        
+                    self.logger.info(f"调用MCP工具 {func_name} 参数: {func_args}")
+                    
+                    try:
+                        result = await self.mcp_manager.call_tool(func_name, func_args)
+                        content = result
+                    except Exception as e:
+                        content = f"工具调用失败: {e}"
+                        self.logger.error(f"MCP工具调用失败: {e}")
+                    
+                    # 将工具结果加入消息历史
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call["id"],
+                        "content": content
+                    })
+                
+                # 让AI根据工具结果进一步回应
+                return await self.get_ai_reply_with_mcp(messages)
+            
+            return collected_content
+            
+        except Exception as e:
+            self.logger.error(f"AI请求失败: {e}")
+            return f"AI请求失败: {e}"
     
 
     def chat_round(self,messages):
@@ -612,8 +923,21 @@ class AiAPI:
         except Exception as e:
             return f"写入文件失败: {e}"
 
-    def chagePrompt (self):
-        pass
+    def get_ai_reply_sync_with_mcp(self, messages):
+        """同步方式获取AI回复（支持MCP），返回字符串"""
+        try:
+            # 尝试异步调用
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                reply = loop.run_until_complete(self.get_ai_reply_with_mcp(messages))
+                return reply
+            finally:
+                loop.close()
+        except Exception as e:
+            self.logger.error(f"同步MCP调用失败: {e}")
+            # 回退到普通同步调用
+            return self.get_ai_reply_sync(messages)
 
 
 '''

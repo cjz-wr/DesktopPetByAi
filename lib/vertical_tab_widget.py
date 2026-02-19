@@ -4,18 +4,15 @@ lib.vertical_tab_widget 的 Docstring
 该模块实现了一个自定义的垂直标签页组件 VerticalTabWidget，包含三个主要标签页：聊天、设置和帮助&关于。左侧为垂直排列的按钮，右侧为对应的堆叠页面。用户可以通过按钮切换不同的标签页。设置页面支持背景图片选择、透明度和亮度调整等功能，并保存用户配置。该组件还集成了字体管理器以支持动态字体更改。
 '''
 
-
 import sys
 import json, os
 from PyQt6.QtWidgets import (QApplication, QStackedWidget, QDialog, QFontDialog, QStyle, QButtonGroup, 
                             QFrame, QVBoxLayout, QDoubleSpinBox, QSpinBox, QFileDialog, QTabBar, 
                             QHBoxLayout, QLabel, QPushButton, QWidget, QTabWidget, QScrollArea,
                             QTextEdit, QDialogButtonBox, QMessageBox, QSplitter, QMenu, QSystemTrayIcon, QComboBox, QLineEdit)
-from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread
+from PyQt6.QtCore import Qt, QPoint, QSize, QRectF, pyqtSignal, QObject, QRect, QThread, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import (QIcon, QMouseEvent, QPainter, QImage, QPixmap, QFontMetrics, QPen, QColor, 
                          QPainterPath, QFont, QTextCursor, QTextCharFormat, QMovie)
-
-import zhipu as zhipu  # 导入zhipu模块以使用load_gif函数
 
 class VerticalTabBar(QTabBar):
     def __init__(self, parent=None):
@@ -47,7 +44,6 @@ class VerticalTabBar(QTabBar):
             for char in text:
                 painter.drawText(x, y, char)
                 y += font_metrics.height()
-
 
 class VerticalTabWidget(QWidget):
     # 添加信号用于通知设置变化
@@ -119,7 +115,7 @@ class VerticalTabWidget(QWidget):
         self.stacked_widget = QStackedWidget()
         self.stacked_widget.setStyleSheet("background-color: transparent;")  # 设置透明背景
         
-        # 创建三个页面
+        # 创建四个页面
         self.tab1 = QWidget()
         self.tab1.setStyleSheet("background-color: transparent;")  # 设置透明背景
         self.tab2 = QWidget()
@@ -139,6 +135,7 @@ class VerticalTabWidget(QWidget):
         # 创建按钮
         for i, (name, icon) in enumerate(zip(tab_names, icons)):
             btn = QPushButton(name)
+            btn.setObjectName(f"tab_button_{i}")
             btn.setCheckable(True)
             btn.setStyleSheet(button_style)
             btn.setIcon(self.style().standardIcon(icon))
@@ -172,7 +169,51 @@ class VerticalTabWidget(QWidget):
         main_layout.addWidget(button_container, 0)
         main_layout.addWidget(separator, 0)
         main_layout.addWidget(self.stacked_widget, 1)
+        
+        # 应用美化主题和动画效果
+        self.apply_beautiful_theme()
 
+    def apply_beautiful_theme(self):
+        """应用美化主题和动画效果"""
+        from lib.theme_manager import ThemeManager, WidgetEnhancer, AnimationManager
+        
+        # 应用绿色主题
+        theme_manager = ThemeManager()
+        theme_manager.apply_theme(self, 'green')
+        
+        # 增强标签按钮效果
+        for i, button in enumerate(self.tab_buttons):
+            WidgetEnhancer.enhance_button(button, 'tab')
+            
+            # 为每个按钮添加淡入动画
+            fade_anim = AnimationManager.create_fade_animation(button, duration=300)
+            fade_anim.setStartValue(0.0)
+            fade_anim.setEndValue(1.0)
+            fade_anim.start()
+        
+        # 为堆叠页面添加切换动画
+        self.stacked_widget.currentChanged.connect(self.on_page_changed)
+    
+    def on_page_changed(self, index):
+        """页面切换时的动画效果"""
+        from lib.theme_manager import AnimationManager
+        current_widget = self.stacked_widget.widget(index)
+        
+        # 淡入效果
+        fade_anim = AnimationManager.create_fade_animation(current_widget, duration=200)
+        fade_anim.setStartValue(0.0)
+        fade_anim.setEndValue(1.0)
+        fade_anim.start()
+        
+        # 轻微的缩放效果
+        scale_anim = QPropertyAnimation(current_widget, b"geometry")
+        scale_anim.setDuration(200)
+        scale_anim.setEasingCurve(QEasingCurve.Type.OutBack)
+        original_geom = current_widget.geometry()
+        scale_anim.setStartValue(original_geom.adjusted(10, 10, -10, -10))
+        scale_anim.setEndValue(original_geom)
+        scale_anim.start()
+    
     def switch_tab(self, button):
         index = self.button_group.id(button)
         self.stacked_widget.setCurrentIndex(index)
@@ -183,7 +224,7 @@ class VerticalTabWidget(QWidget):
             with open(setting_path, "w", encoding="utf-8") as f:
                 f.write("{}")
             return {}
-
+        
         try:
             with open(setting_path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -203,7 +244,7 @@ class VerticalTabWidget(QWidget):
         layout.addWidget(chat_widget)
     
     def init_tab2_ui(self):
-        """初始化设置标签页 - 添加滚动功能"""
+        """初始化设置标签页 - 应用美化主题"""
         # 创建主布局
         main_layout = QVBoxLayout(self.tab2)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -240,49 +281,89 @@ class VerticalTabWidget(QWidget):
         scroll_layout.setContentsMargins(20, 20, 30, 20)  # 右边距增加以适应滚动条
         scroll_layout.setSpacing(15)
         
-        # 图片选择区域
+        # 应用主题管理器
+        from lib.theme_manager import ThemeManager, WidgetEnhancer
+        theme_manager = ThemeManager()
+        theme_manager.apply_theme(self, 'green')
+        
+        # 背景设置区域 - 美化为卡片样式
         img_group = QWidget()
-        img_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")  # 半透明背景
+        img_group.setObjectName("background-setting-card")
         img_layout = QVBoxLayout(img_group)
+        img_layout.setSpacing(12)
         
-        bg_setting_label = QLabel("<b style='color: black;'>背景图片设置</b>")
+        # 背景设置标题
+        bg_title = QLabel("🖼️ 背景图片设置")
+        bg_title.setObjectName("card-title")
         if self.font_manager:
-            self.font_manager.register_widget(bg_setting_label)
-        img_layout.addWidget(bg_setting_label)
+            self.font_manager.register_widget(bg_title)
+        img_layout.addWidget(bg_title)
         
+        # 文件选择按钮
+        select_button = QPushButton("📁 选择背景图片")
+        select_button.setObjectName("select-image-button")
+        select_button.clicked.connect(self.show_file_dialog)
+        if self.font_manager:
+            self.font_manager.register_widget(select_button)
+        
+        # 增强按钮效果
+        WidgetEnhancer.enhance_button(select_button, 'primary')
+        
+        img_layout.addWidget(select_button)
+        
+        # 当前选择显示
         self.img_label = QLabel("未选择任何文件")
         self.img_label.setWordWrap(True)
+        self.img_label.setStyleSheet("""
+            QLabel {
+                color: #2F4F2F;
+                background-color: #F8FFF8;
+                padding: 10px;
+                border-radius: 6px;
+                border: 1px solid #B2F2BB;
+            }
+        """)
         if self.font_manager:
             self.font_manager.register_widget(self.img_label)
         
         if "background_path" in self.data_setting and self.data_setting["background_path"]:
             self.img_label.setText(self.data_setting["background_path"])
-
-        select_button = QPushButton("选择背景图片")
-        select_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")  # 半透明按钮
-        select_button.clicked.connect(self.show_file_dialog)
-        if self.font_manager:
-            self.font_manager.register_widget(select_button)
-
-        img_layout.addWidget(select_button)
+        
         img_layout.addWidget(self.img_label)
         
         scroll_layout.addWidget(img_group)
-
-        # 分隔线
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setFrameShadow(QFrame.Shadow.Sunken)
-        line.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line)
-
-        # 浮点数设置区域 - 图片透明度 (0.0 ~ 1.0)
-        self.spin_label = QLabel(f"<span style='color: black;'>图片透明度当前值(0.0~1.0)：{self.get_transparency_img_value()}</span>")
+        
+        # 透明度设置卡片
+        transparency_group = QWidget()
+        transparency_group.setObjectName("setting-card")
+        trans_layout = QVBoxLayout(transparency_group)
+        trans_layout.setSpacing(12)
+        
+        # 透明度标题
+        trans_title = QLabel("🔍 图片透明度调节")
+        trans_title.setObjectName("card-title")
+        if self.font_manager:
+            self.font_manager.register_widget(trans_title)
+        trans_layout.addWidget(trans_title)
+        
+        # 透明度说明
+        trans_desc = QLabel("调节宠物的透明度，数值越小越透明 (0.0-1.0)")
+        trans_desc.setObjectName("info-label")
+        trans_desc.setWordWrap(True)
+        if self.font_manager:
+            self.font_manager.register_widget(trans_desc)
+        trans_layout.addWidget(trans_desc)
+        
+        # 当前值显示
+        self.spin_label = QLabel(f"当前透明度值：<b>{self.get_transparency_img_value():.1f}</b>")
+        self.spin_label.setObjectName("value-display")
         if self.font_manager:
             self.font_manager.register_widget(self.spin_label)
-            
+        trans_layout.addWidget(self.spin_label)
+        
+        # 透明度调节滑块
         self.double_spin = QDoubleSpinBox()
-        self.double_spin.setStyleSheet("background-color: rgba(255, 255, 255, 200);")  # 半透明背景
+        self.double_spin.setObjectName("transparency-slider")
         self.double_spin.setRange(0.0, 1.0)
         self.double_spin.setSingleStep(0.1)
         self.double_spin.setDecimals(1)
@@ -290,353 +371,232 @@ class VerticalTabWidget(QWidget):
         self.double_spin.valueChanged.connect(self.on_value_changed_img)
         if self.font_manager:
             self.font_manager.register_widget(self.double_spin)
-
-        trans_label = QLabel("<b style='color: black;'>图片透明度</b>")
+        trans_layout.addWidget(self.double_spin)
+        
+        scroll_layout.addWidget(transparency_group)
+        
+        # 亮度设置卡片
+        brightness_group = QWidget()
+        brightness_group.setObjectName("setting-card")
+        bright_layout = QVBoxLayout(brightness_group)
+        bright_layout.setSpacing(12)
+        
+        # 亮度标题
+        bright_title = QLabel("💡 图片亮度调节")
+        bright_title.setObjectName("card-title")
         if self.font_manager:
-            self.font_manager.register_widget(trans_label)
-            
-        scroll_layout.addWidget(trans_label)
-        scroll_layout.addWidget(self.spin_label)
-        scroll_layout.addWidget(self.double_spin)
-
-        # 分隔线
-        line2 = QFrame()
-        line2.setFrameShape(QFrame.Shape.HLine)
-        line2.setFrameShadow(QFrame.Shadow.Sunken)
-        line2.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line2)
-
-        # 整数设置区域 - 透明度或亮度 (0 ~ 255)
-        self.int_label = QLabel(f"<span style='color: black;'>亮度值当前值(0~255)：{self.get_luminance_img_value()}</span>")
+            self.font_manager.register_widget(bright_title)
+        bright_layout.addWidget(bright_title)
+        
+        # 亮度说明
+        bright_desc = QLabel("调节宠物显示亮度，数值越大越明亮 (0-255)")
+        bright_desc.setObjectName("info-label")
+        bright_desc.setWordWrap(True)
+        if self.font_manager:
+            self.font_manager.register_widget(bright_desc)
+        bright_layout.addWidget(bright_desc)
+        
+        # 当前值显示
+        self.int_label = QLabel(f"当前亮度值：<b>{self.get_luminance_img_value()}</b>")
+        self.int_label.setObjectName("value-display")
         if self.font_manager:
             self.font_manager.register_widget(self.int_label)
-            
+        bright_layout.addWidget(self.int_label)
+        
+        # 亮度调节滑块
         self.int_spin = QSpinBox()
-        self.int_spin.setStyleSheet("background-color: rgba(255, 255, 255, 200);")  # 半透明背景
+        self.int_spin.setObjectName("brightness-slider")
         self.int_spin.setRange(0, 255)
-        self.int_spin.setSingleStep(1)
-        self.int_spin.setValue(self.get_luminance_img_value())  # 获取之前保存的值
+        self.int_spin.setSingleStep(5)
+        self.int_spin.setValue(self.get_luminance_img_value())
         self.int_spin.valueChanged.connect(self.on_value_changed_int)
         if self.font_manager:
             self.font_manager.register_widget(self.int_spin)
-
-        luminance_label = QLabel("<b style='color: black;'>图片亮度</b>")
-        if self.font_manager:
-            self.font_manager.register_widget(luminance_label)
-            
-        scroll_layout.addWidget(luminance_label)
-        scroll_layout.addWidget(self.int_label)
-        scroll_layout.addWidget(self.int_spin)
-
+        bright_layout.addWidget(self.int_spin)
+        
+        scroll_layout.addWidget(brightness_group)
+        
         # 分隔线
         line3 = QFrame()
         line3.setFrameShape(QFrame.Shape.HLine)
         line3.setFrameShadow(QFrame.Shadow.Sunken)
         line3.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
         scroll_layout.addWidget(line3)
-
-        # AI Key 设置区域
-        ai_key_group = QWidget()
-        ai_key_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        ai_key_layout = QVBoxLayout(ai_key_group)
-
-        ai_key_label = QLabel("<b style='color: black;'>AI Key 设置</b>")
+        
+        # 个性化设置卡片
+        personal_group = QWidget()
+        personal_group.setObjectName("personalization-card")
+        personal_layout = QVBoxLayout(personal_group)
+        personal_layout.setSpacing(12)
+        
+        # 个性化设置标题
+        personal_title = QLabel("🎨 个性化设置")
+        personal_title.setObjectName("card-title")
         if self.font_manager:
-            self.font_manager.register_widget(ai_key_label)
-        ai_key_layout.addWidget(ai_key_label)
-
-        self.ai_key_edit = QTextEdit()
-        self.ai_key_edit.setPlaceholderText("请输入新的AI Key...")
-        self.ai_key_edit.setMaximumHeight(60)
-        self.ai_key_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+            self.font_manager.register_widget(personal_title)
+        personal_layout.addWidget(personal_title)
+        
+        # API配置说明
+        api_info = QLabel("🔧 当前使用OpenAI兼容接口")
+        api_info.setObjectName("info-label")
         if self.font_manager:
-            self.font_manager.register_widget(self.ai_key_edit)
-        ai_key_layout.addWidget(self.ai_key_edit)
-
-        # 加载当前AI Key
-        self.load_ai_key()
-
-        save_ai_key_button = QPushButton("保存AI Key")
-        save_ai_key_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
-        save_ai_key_button.clicked.connect(self.save_ai_key)
+            self.font_manager.register_widget(api_info)
+        personal_layout.addWidget(api_info)
+        
+        # OpenAI接口配置
+        openai_title = QLabel("🌐 OpenAI接口配置")
+        openai_title.setObjectName("section-title")
         if self.font_manager:
-            self.font_manager.register_widget(save_ai_key_button)
-        ai_key_layout.addWidget(save_ai_key_button)
-
-        scroll_layout.addWidget(ai_key_group)
-
-        # 分隔线
-        line4 = QFrame()
-        line4.setFrameShape(QFrame.Shape.HLine)
-        line4.setFrameShadow(QFrame.Shadow.Sunken)
-        line4.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line4)
-
-        # 模型选择区域
-        model_group = QWidget()
-        model_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        model_layout = QVBoxLayout(model_group)
-
-        model_label = QLabel("<b style='color: black;'>模型选择</b>")
+            self.font_manager.register_widget(openai_title)
+        personal_layout.addWidget(openai_title)
+        
+        # API密钥输入
+        api_key_label = QLabel("🔑 API密钥:")
+        api_key_label.setObjectName("setting-label")
+        if self.font_manager:
+            self.font_manager.register_widget(api_key_label)
+        personal_layout.addWidget(api_key_label)
+        
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setObjectName("api-key-input")
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_key_input.setPlaceholderText("请输入OpenAI API密钥")
+        if self.font_manager:
+            self.font_manager.register_widget(self.api_key_input)
+        personal_layout.addWidget(self.api_key_input)
+        
+        # Base URL输入
+        base_url_label = QLabel("🔗 基础URL:")
+        base_url_label.setObjectName("setting-label")
+        if self.font_manager:
+            self.font_manager.register_widget(base_url_label)
+        personal_layout.addWidget(base_url_label)
+        
+        self.base_url_input = QLineEdit()
+        self.base_url_input.setObjectName("base-url-input")
+        self.base_url_input.setPlaceholderText("例如: https://api.openai.com/v1")
+        if self.font_manager:
+            self.font_manager.register_widget(self.base_url_input)
+        personal_layout.addWidget(self.base_url_input)
+        
+        # 模型名称输入
+        model_label = QLabel("🤖 模型名称:")
+        model_label.setObjectName("setting-label")
         if self.font_manager:
             self.font_manager.register_widget(model_label)
-        model_layout.addWidget(model_label)
-
-        self.model_edit = QLineEdit()
-        self.model_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        personal_layout.addWidget(model_label)
+        
+        self.model_input = QLineEdit()
+        self.model_input.setObjectName("model-input")
+        self.model_input.setPlaceholderText("请输入模型名称，例如: gpt-3.5-turbo")
         if self.font_manager:
-            self.font_manager.register_widget(self.model_edit)
-        model_layout.addWidget(self.model_edit)
-
-        # 添加常用模型提示
-        model_hint = QLabel("常用模型: glm-4-flash-250414, glm-4, glm-3-turbo, chatglm2-6b, chatglm3-6b")
-        model_hint.setStyleSheet("color: #666666; font-size: 12px;")
-        if self.font_manager:
-            self.font_manager.register_widget(model_hint)
-        model_layout.addWidget(model_hint)
-
-        # 加载当前模型
-        self.load_model()
-
-        save_model_button = QPushButton("保存模型选择")
-        save_model_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
-        save_model_button.clicked.connect(self.save_model)
-        if self.font_manager:
-            self.font_manager.register_widget(save_model_button)
-        model_layout.addWidget(save_model_button)
-
-        scroll_layout.addWidget(model_group)
-
-        # 分隔线
-        line5 = QFrame()
-        line5.setFrameShape(QFrame.Shape.HLine)
-        line5.setFrameShadow(QFrame.Shadow.Sunken)
-        line5.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line5)
-
-        # OpenAI API 设置区域
-        openai_group = QWidget()
-        openai_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        openai_layout = QVBoxLayout(openai_group)
-
-        openai_label = QLabel("<b style='color: black;'>OpenAI API 设置</b>")
-        if self.font_manager:
-            self.font_manager.register_widget(openai_label)
-        openai_layout.addWidget(openai_label)
-
-        # OpenAI API Key
-        openai_key_label = QLabel("OpenAI API Key:")
-        if self.font_manager:
-            self.font_manager.register_widget(openai_key_label)
-        openai_layout.addWidget(openai_key_label)
-
-        self.openai_key_edit = QTextEdit()
-        self.openai_key_edit.setPlaceholderText("请输入OpenAI API Key...")
-        self.openai_key_edit.setMaximumHeight(60)
-        self.openai_key_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
-        if self.font_manager:
-            self.font_manager.register_widget(self.openai_key_edit)
-        openai_layout.addWidget(self.openai_key_edit)
-
-        # OpenAI Base URL
-        openai_base_label = QLabel("OpenAI Base URL:")
-        if self.font_manager:
-            self.font_manager.register_widget(openai_base_label)
-        openai_layout.addWidget(openai_base_label)
-
-        self.openai_base_edit = QLineEdit()
-        self.openai_base_edit.setPlaceholderText("https://api.openai.com/v1")
-        self.openai_base_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
-        if self.font_manager:
-            self.font_manager.register_widget(self.openai_base_edit)
-        openai_layout.addWidget(self.openai_base_edit)
-
-        # OpenAI Model
-        openai_model_label = QLabel("OpenAI Model:")
-        if self.font_manager:
-            self.font_manager.register_widget(openai_model_label)
-        openai_layout.addWidget(openai_model_label)
-
-        self.openai_model_edit = QLineEdit()
-        self.openai_model_edit.setPlaceholderText("gpt-3.5-turbo")
-        self.openai_model_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
-        if self.font_manager:
-            self.font_manager.register_widget(self.openai_model_edit)
-        openai_layout.addWidget(self.openai_model_edit)
-
-        # 添加常用模型提示
-        openai_hint = QLabel("常用模型: gpt-3.5-turbo, gpt-4, gpt-4o, gpt-4-turbo")
-        openai_hint.setStyleSheet("color: #666666; font-size: 12px;")
-        if self.font_manager:
-            self.font_manager.register_widget(openai_hint)
-        openai_layout.addWidget(openai_hint)
-
-        # 加载当前OpenAI配置
+            self.font_manager.register_widget(self.model_input)
+        personal_layout.addWidget(self.model_input)
+        
+        # 加载当前配置
         self.load_openai_config()
-
-        save_openai_button = QPushButton("保存OpenAI配置")
-        save_openai_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        
+        save_openai_button = QPushButton("💾 保存接口配置")
+        save_openai_button.setObjectName("save-button")
         save_openai_button.clicked.connect(self.save_openai_config)
         if self.font_manager:
             self.font_manager.register_widget(save_openai_button)
-        openai_layout.addWidget(save_openai_button)
-
-        scroll_layout.addWidget(openai_group)
-
-        # 分隔线
-        line6 = QFrame()
-        line6.setFrameShape(QFrame.Shape.HLine)
-        line6.setFrameShadow(QFrame.Shadow.Sunken)
-        line6.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line6)
-
-        # API选择区域
-        api_group = QWidget()
-        api_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        api_layout = QVBoxLayout(api_group)
-
-        api_label = QLabel("<b style='color: black;'>API 选择</b>")
+        WidgetEnhancer.enhance_button(save_openai_button, 'primary')
+        personal_layout.addWidget(save_openai_button)
+        
+        # GIF文件夹选择
+        gif_title = QLabel("🎮 GIF动画选择")
+        gif_title.setObjectName("section-title")
         if self.font_manager:
-            self.font_manager.register_widget(api_label)
-        api_layout.addWidget(api_label)
-
-        # 创建API选择下拉框
-        self.api_selector = QComboBox()
-        self.api_selector.addItems(["智谱AI (ZhipuAI)", "OpenAI"])
-        self.api_selector.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
-        if self.font_manager:
-            self.font_manager.register_widget(self.api_selector)
-        api_layout.addWidget(self.api_selector)
-
-        # 加载当前API选择
-        self.load_api_selection()
-
-        save_api_button = QPushButton("保存API选择")
-        save_api_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
-        save_api_button.clicked.connect(self.save_api_selection)
-        if self.font_manager:
-            self.font_manager.register_widget(save_api_button)
-        api_layout.addWidget(save_api_button)
-
-        scroll_layout.addWidget(api_group)
-
-        # 分隔线
-        line7 = QFrame()
-        line7.setFrameShape(QFrame.Shape.HLine)
-        line7.setFrameShadow(QFrame.Shadow.Sunken)
-        line7.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line7)
-
-        # GIF文件夹选择区域
-        gif_group = QWidget()
-        gif_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        gif_layout = QVBoxLayout(gif_group)
-
-        gif_label = QLabel("<b style='color: black;'>GIF文件夹选择</b>")
-        if self.font_manager:
-            self.font_manager.register_widget(gif_label)
-        gif_layout.addWidget(gif_label)
-
-        # 获取gif文件夹下的所有子文件夹
+            self.font_manager.register_widget(gif_title)
+        personal_layout.addWidget(gif_title)
+        
         self.gif_folder_combo = QComboBox()
-        self.gif_folder_combo.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        self.gif_folder_combo.setObjectName("gif-folder-selector")
         if self.font_manager:
             self.font_manager.register_widget(self.gif_folder_combo)
-        gif_layout.addWidget(self.gif_folder_combo)
-
+        personal_layout.addWidget(self.gif_folder_combo)
+        
         # 加载GIF文件夹选项
         self.load_gif_folders()
-
-        # 保存GIF文件夹选择按钮
-        save_gif_folder_button = QPushButton("保存GIF文件夹选择")
-        save_gif_folder_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
-        save_gif_folder_button.clicked.connect(self.save_gif_folder_selection)
+        
+        save_gif_button = QPushButton("💾 保存GIF选择")
+        save_gif_button.setObjectName("save-button")
+        save_gif_button.clicked.connect(self.save_gif_folder_selection)
         if self.font_manager:
-            self.font_manager.register_widget(save_gif_folder_button) # 注册按钮
-        gif_layout.addWidget(save_gif_folder_button) # 注册按钮
-
-        scroll_layout.addWidget(gif_group)
-
-        # 分隔线
-        line8 = QFrame()
-        line8.setFrameShape(QFrame.Shape.HLine)
-        line8.setFrameShadow(QFrame.Shadow.Sunken)
-        line8.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line8)
-
-        # AI角色设定区域
-        prompt_group = QWidget()
-        prompt_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        prompt_layout = QVBoxLayout(prompt_group)
-
-        prompt_label = QLabel("<b style='color: black;'>AI角色设定</b>")
+            self.font_manager.register_widget(save_gif_button)
+        WidgetEnhancer.enhance_button(save_gif_button, 'secondary')
+        personal_layout.addWidget(save_gif_button)
+        
+        # AI角色设定
+        role_title = QLabel("🎭 AI角色设定")
+        role_title.setObjectName("section-title")
         if self.font_manager:
-            self.font_manager.register_widget(prompt_label)
-        prompt_layout.addWidget(prompt_label)
-
+            self.font_manager.register_widget(role_title)
+        personal_layout.addWidget(role_title)
+        
         self.prompt_edit = QTextEdit()
-        self.prompt_edit.setPlaceholderText("请输入新的AI角色设定...")
-        self.prompt_edit.setMaximumHeight(60)
-        self.prompt_edit.setStyleSheet("background-color: rgba(255, 255, 255, 200); border: 1px solid #cccccc; border-radius: 5px; padding: 8px;")
+        self.prompt_edit.setObjectName("role-setting-textarea")
+        self.prompt_edit.setPlaceholderText("请输入您想要的AI角色个性描述...")
+        self.prompt_edit.setMaximumHeight(100)
         if self.font_manager:
             self.font_manager.register_widget(self.prompt_edit)
-        prompt_layout.addWidget(self.prompt_edit)
-
+        personal_layout.addWidget(self.prompt_edit)
+        
         # 加载当前AI角色设定
         self.load_prompt()
-
-        save_prompt_button = QPushButton("保存AI角色设定")
-        save_prompt_button.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
+        
+        save_prompt_button = QPushButton("💾 保存角色设定")
+        save_prompt_button.setObjectName("save-button")
         save_prompt_button.clicked.connect(self.save_prompt)
         if self.font_manager:
             self.font_manager.register_widget(save_prompt_button)
-        prompt_layout.addWidget(save_prompt_button)
-
-        scroll_layout.addWidget(prompt_group)
-
-        # 分隔线
-        line9 = QFrame()
-        line9.setFrameShape(QFrame.Shape.HLine)
-        line9.setFrameShadow(QFrame.Shadow.Sunken)
-        line9.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line9)
-
-        # 添加打开prompt.txt文件的按钮
-        open_prompt_group = QWidget()
-        open_prompt_group.setStyleSheet("background-color: rgba(255, 255, 255, 150); border-radius: 5px; padding: 10px;")
-        open_prompt_layout = QVBoxLayout(open_prompt_group)
-
-        open_prompt_label = QLabel("<b style='color: black;'>修改提示词</b>")
+        WidgetEnhancer.enhance_button(save_prompt_button, 'secondary')
+        personal_layout.addWidget(save_prompt_button)
+        
+        # 字体选择
+        font_title = QLabel("🔤 字体设置")
+        font_title.setObjectName("section-title")
         if self.font_manager:
-            self.font_manager.register_widget(open_prompt_label)
-        open_prompt_layout.addWidget(open_prompt_label)
-
-        open_prompt_btn = QPushButton("打开 prompt.txt 文件")
-        open_prompt_btn.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")
-        open_prompt_btn.clicked.connect(self.open_prompt_file)
-        if self.font_manager:
-            self.font_manager.register_widget(open_prompt_btn)
-        open_prompt_layout.addWidget(open_prompt_btn)
-
-        scroll_layout.addWidget(open_prompt_group)
-
-        # 分隔线
-        line10 = QFrame()
-        line10.setFrameShape(QFrame.Shape.HLine)
-        line10.setFrameShadow(QFrame.Shadow.Sunken)
-        line10.setStyleSheet("margin: 15px 0; background-color: rgba(255, 255, 255, 100);")  # 半透明分隔线
-        scroll_layout.addWidget(line10)
-
-        # 创建并注册选择字体按钮
-        self.select_font_ = QPushButton("选择字体")
-        self.select_font_.setStyleSheet("padding: 8px; background-color: rgba(240, 240, 240, 200);")  # 半透明按钮
+            self.font_manager.register_widget(font_title)
+        personal_layout.addWidget(font_title)
+        
+        self.select_font_ = QPushButton("🎨 选择字体")
+        self.select_font_.setObjectName("font-select-button")
         self.select_font_.clicked.connect(self.select_font)
         if self.font_manager:
             self.font_manager.register_widget(self.select_font_)
-        scroll_layout.addWidget(self.select_font_)
-
+        WidgetEnhancer.enhance_button(self.select_font_, 'accent')
+        personal_layout.addWidget(self.select_font_)
+        
+        scroll_layout.addWidget(personal_group)
+        
+        # MCP配置卡片
+        mcp_group = QWidget()
+        mcp_group.setObjectName("mcp-config-card")
+        mcp_layout = QVBoxLayout(mcp_group)
+        mcp_layout.setSpacing(12)
+        
+        # MCP配置标题
+        mcp_title = QLabel("🔌 MCP服务器配置")
+        mcp_title.setObjectName("card-title")
+        if self.font_manager:
+            self.font_manager.register_widget(mcp_title)
+        mcp_layout.addWidget(mcp_title)
+        
+        # 导入并添加MCP配置组件
+        from lib.mcp_config_widget import MCPConfigWidget
+        self.mcp_config_widget = MCPConfigWidget(font_manager=self.font_manager)
+        self.mcp_config_widget.config_changed.connect(self.on_mcp_config_changed)
+        mcp_layout.addWidget(self.mcp_config_widget)
+        
+        scroll_layout.addWidget(mcp_group)
+        
         # 保持底部留白
         scroll_layout.addStretch()
+        
+        # 添加自定义样式
+        self.add_custom_styles()
         
         # 设置滚动内容
         scroll_area.setWidget(scroll_content)
@@ -644,9 +604,200 @@ class VerticalTabWidget(QWidget):
         # 将滚动区域添加到主布局
         main_layout.addWidget(scroll_area)
 
+    def add_custom_styles(self):
+        """添加自定义CSS样式 - 优化版本避免不支持的属性"""
+        custom_styles = """
+            /* 通用样式 */
+            QLabel {
+                color: #2F4F2F;
+                font-size: 14px;
+            }
+            
+            /* MCP配置相关样式 - 移除不支持的CSS3属性 */
+            #mcp-config-card {
+                background-color: #F8F8FF;
+                border: 1px solid #E0E0E0;
+                border-radius: 12px;
+                padding: 20px;
+                margin: 15px 10px;
+            }
+            
+            #mcp-config-card QLabel {
+                color: #191970;
+                font-size: 14px;
+            }
+            
+            #server-list {
+                background-color: #FFFFFF;
+                alternate-background-color: #F9F9FF;
+                selection-background-color: #87CEEB;
+                selection-color: #191970;
+                border: 1px solid #E0E0E0;
+                border-radius: 8px;
+                padding: 8px;
+                min-height: 120px;
+            }
+            #server-list::item {
+                padding: 12px 16px;
+                border-radius: 4px;
+            }
+            #server-list::item:selected {
+                background-color: #87CEEB;
+                color: #191970;
+                font-weight: bold;
+            }
+            #server-list::item:hover {
+                background-color: #F0F8FF;
+            }
+            
+            /* 操作按钮样式 - 简化版本 */
+            #add-server-button, #edit-server-button, #remove-server-button, #test-server-button {
+                padding: 10px 20px;
+                margin: 4px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            #add-server-button {
+                background-color: #90EE90;
+                border: 1px solid #2E8B57;
+                color: white;
+            }
+            #add-server-button:hover {
+                background-color: #77DD77;
+                border: 1px solid #228B22;
+            }
+
+            #edit-server-button {
+                background-color: #87CEEB;
+                border: 1px solid #3A6D9C;
+                color: white;
+            }
+            #edit-server-button:hover {
+                background-color: #70C1D5;
+                border: 1px solid #2E5A88;
+            }
+
+            #remove-server-button {
+                background-color: #FFB6C1;
+                border: 1px solid #CC3333;
+                color: white;
+            }
+            #remove-server-button:hover {
+                background-color: #FF9999;
+                border: 1px solid #AA2222;
+            }
+
+            #test-server-button {
+                background-color: #DDA0DD;
+                border: 1px solid #993399;
+                color: white;
+            }
+            #test-server-button:hover {
+                background-color: #CC88CC;
+                border: 1px solid #772277;
+            }
+
+            #add-server-button:disabled,
+            #edit-server-button:disabled,
+            #remove-server-button:disabled,
+            #test-server-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            
+            /* 工具信息区域 */
+            #tools-info {
+                background-color: #FFFFFF;
+                padding: 16px;
+                border: 1px solid #E0E0E0;
+                border-radius: 8px;
+                color: #2F4F2F;
+                line-height: 1.5;
+            }
+            #refresh-tools-button {
+                background-color: #98FB98;
+                border: 1px solid #2E8B57;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+                margin-top: 8px;
+            }
+            #refresh-tools-button:hover {
+                background-color: #77DD77;
+                border: 1px solid #228B22;
+            }
+            
+            /* 输入控件样式 */
+            QLineEdit, QSpinBox {
+                padding: 8px 12px;
+                border: 1px solid #B0E0E6;
+                border-radius: 6px;
+                background-color: #FFFFFF;
+                selection-background-color: #98FB98;
+                font-size: 14px;
+            }
+            QLineEdit:focus, QSpinBox:focus {
+                border-color: #3CB371;
+                background-color: #FFFFFF;
+            }
+            
+            /* 标题样式 */
+            #section-title {
+                color: #228B22;
+                font-size: 18px;
+                font-weight: bold;
+                margin: 15px 0 10px 0;
+                border-bottom: 2px solid #98FB98;
+                padding-bottom: 8px;
+                text-align: center;
+            }
+        """
+        self.setStyleSheet(self.styleSheet() + custom_styles)
+
     def init_tab3_ui(self):
         """初始化帮助和关于标签页"""
         layout = QVBoxLayout(self.tab3)
+        
+        # 创建并注册标签
+        help_label = QLabel("<h1 style='color: black;'>帮助与关于</h1>")
+        content_label = QLabel("""
+            <p style='color: black;'><b>版本信息：</b> v2.1.5</p>
+            <p style='color: black;'><b>开发者：</b> CJZ-WR</p>
+            <p style='color: black;'><b>如有问题请提issues：</b> https://github.com/cjz-wr/DesktopPetByAi/issues</p>
+            <p style='color: black;'><b>使用说明：</b></p>
+            <ul style='color: black;'>
+                <li>在设置页面可以配置背景图片</li>
+                <li>调整透明度使图片更符合您的需求</li>
+                <li>调整亮度优化显示效果</li>
+                <li>需要自行配置API密钥</li>
+                <li>现已支持MCP工具调用功能</li>
+            </ul>
+            <p style='color: red; font-size: 20px;'><b>注意：</b></p>
+            <ul style='color: black;'>
+                <li>本项目仅供学习和研究使用，请勿用于商业用途。</li>
+                <li>请遵守相关法律法规，尊重知识产权。</li>
+                <li>请勿用于非法用途。如涉及侵犯他人权益的行为,与开发者无关。</li>
+            </ul>
+            <p style='color: black;'><b>更新说明：</b></p>
+            <ul style='color: black;'>
+                <li>添加openai api支持</li>
+                <li>可以调用本地模型（需自行部署）</li>
+                <li>修复一些bug</li>
+                <li>添加MCP工具调用功能</li>
+                <li>我要让她更像人,啊啊啊啊</li>
+            </ul>
+        """)
+        
+        if self.font_manager:
+            self.font_manager.register_widget(help_label)
+            self.font_manager.register_widget(content_label)
+            
+        layout.addWidget(help_label)
+        layout.addWidget(content_label)
+        layout.addStretch()
         
         # 创建并注册标签
         help_label = QLabel("<h1 style='color: black;'>帮助与关于</h1>")
@@ -684,6 +835,11 @@ class VerticalTabWidget(QWidget):
         layout.addWidget(content_label)
         layout.addStretch()
     
+    def on_mcp_config_changed(self):
+        """MCP配置改变时的处理"""
+        # 可以在这里添加重新初始化MCP连接的逻辑
+        pass
+        
     def select_font(self):
         # 使用字体管理器的当前字体初始化对话框
         current_font = self.font_manager.font if self.font_manager else QFont()
@@ -703,7 +859,7 @@ class VerticalTabWidget(QWidget):
                 border: 1px solid #a0d2eb;
             }
         """)
-
+        
         # 显示字体对话框
         if font_dialog.exec() == QFontDialog.DialogCode.Accepted:
             selected_font = font_dialog.selectedFont()
@@ -719,18 +875,38 @@ class VerticalTabWidget(QWidget):
     
     # 新增：整数变化时保存到配置
     def on_value_changed_int(self, value):
-        self.int_label.setText(f"<span style='color: black;'>亮度值当前值(0~255)：{value}</span>")
+        self.int_label.setText(f"当前亮度值：<b>{value}</b>")
         self.data_setting["luminance_img"] = value
         with open("demo_setting.json", "w", encoding="utf-8") as f:
             json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
         # 发出亮度变化信号
         self.luminance_changed.emit(value)
+        
+        # 添加实时反馈动画
+        self.animate_value_change(self.int_label)
 
     def on_value_changed_img(self, value):
-        self.spin_label.setText(f"<span style='color: black;'>图片透明度当前值(0.0~1.0)：{value:.1f}</span>")
+        self.spin_label.setText(f"当前透明度值：<b>{value:.1f}</b>")
         self.transparency_img(value)
         # 发出透明度变化信号
         self.transparency_changed.emit(value)
+        
+        # 添加实时反馈动画
+        self.animate_value_change(self.spin_label)
+
+    def animate_value_change(self, label):
+        """为数值变化添加动画效果"""
+        from lib.theme_manager import AnimationManager
+        # 颜色闪烁效果
+        original_style = label.styleSheet()
+        label.setStyleSheet(original_style + " background-color: #98FB98; ")
+        
+        # 1秒后恢复原样
+        from PyQt6.QtCore import QTimer
+        timer = QTimer()
+        timer.timeout.connect(lambda: label.setStyleSheet(original_style))
+        timer.setSingleShot(True)
+        timer.start(1000)
 
     def show_file_dialog(self):
         fname, _ = QFileDialog.getOpenFileName(
@@ -766,145 +942,11 @@ class VerticalTabWidget(QWidget):
         with open("demo_setting.json", "w", encoding="utf-8") as f:
             json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
     
-    def load_ai_key(self):
-        """从配置文件中加载当前AI Key"""
+    def get_luminance_img_value(self):
         try:
-            # 从data_setting中获取AI Key
-            ai_key = self.data_setting.get("ai_key", "")
-            if ai_key:
-                self.ai_key_edit.setText(ai_key)
-            else:
-                self.ai_key_edit.setPlaceholderText("未找到API Key，请输入...")
-        except Exception as e:
-            QMessageBox.warning(self, "加载失败", f"无法加载AI Key: {str(e)}")
-            self.ai_key_edit.setPlaceholderText("加载失败，请输入...")
-
-    def save_ai_key(self):
-        """保存新的AI Key到配置文件"""
-        new_api_key = self.ai_key_edit.toPlainText().strip()
-        if not new_api_key:
-            QMessageBox.warning(self, "输入错误", "AI Key不能为空！")
-            return
-
-        try:
-            # 更新data_setting中的AI Key
-            self.data_setting["ai_key"] = new_api_key
-            # 保存到配置文件
-            with open("demo_setting.json", "w", encoding="utf-8") as f:
-                json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
-
-            QMessageBox.information(self, "保存成功", "AI Key已成功更新！\n请注意：修改AI Key后需要重启程序才能生效。")
-        except Exception as e:
-            QMessageBox.warning(self, "保存失败", f"无法保存AI Key: {str(e)}")
-
-    def load_model(self):
-        """从配置文件中加载当前模型"""
-        try:
-            # 从data_setting中获取模型名称
-            model_name = self.data_setting.get("model", "")
-            if model_name:
-                self.model_edit.setText(model_name)
-            else:
-                # 如果配置文件中没有，使用默认模型
-                default_model = "glm-4-flash-250414"
-                self.model_edit.setText(default_model)
-                # 同时保存到配置文件
-                self.data_setting["model"] = default_model
-                with open("demo_setting.json", "w", encoding="utf-8") as f:
-                    json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            QMessageBox.warning(self, "加载失败", f"无法加载模型: {str(e)}")
-
-    def save_model(self):
-        """保存新的模型到配置文件"""
-        new_model = self.model_edit.text().strip()
-        if not new_model:
-            QMessageBox.warning(self, "输入错误", "模型不能为空！")
-            return
-
-        try:
-            # 更新data_setting中的模型
-            self.data_setting["model"] = new_model
-            # 保存到配置文件
-            with open("demo_setting.json", "w", encoding="utf-8") as f:
-                json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
-
-            QMessageBox.information(self, "保存成功", "模型已成功更新！\n请注意：修改模型后需要重启程序才能生效。")
-        except Exception as e:
-            QMessageBox.warning(self, "保存失败", f"无法保存模型: {str(e)}")
-
-    def load_openai_config(self):
-        """从配置文件中加载当前OpenAI配置"""
-        try:
-            # 从data_setting中获取OpenAI配置
-            openai_key = self.data_setting.get("openai_key", "")
-            openai_base_url = self.data_setting.get("openai_base_url", "https://api.openai.com/v1")
-            openai_model = self.data_setting.get("openai_model", "gpt-3.5-turbo")
-            
-            self.openai_key_edit.setPlainText(openai_key)
-            self.openai_base_edit.setText(openai_base_url)
-            self.openai_model_edit.setText(openai_model)
-        except Exception as e:
-            QMessageBox.warning(self, "加载失败", f"无法加载OpenAI配置: {str(e)}")
-
-    def save_openai_config(self):
-        """保存新的OpenAI配置到配置文件"""
-        openai_key = self.openai_key_edit.toPlainText().strip()
-        openai_base_url = self.openai_base_edit.text().strip()
-        openai_model = self.openai_model_edit.text().strip()
-        
-        if not openai_key:
-            QMessageBox.warning(self, "输入错误", "OpenAI API Key不能为空！")
-            return
-        
-        if not openai_base_url:
-            openai_base_url = "https://api.openai.com/v1"
-        
-        if not openai_model:
-            openai_model = "gpt-3.5-turbo"
-
-        try:
-            # 更新data_setting中的OpenAI配置
-            self.data_setting["openai_key"] = openai_key
-            self.data_setting["openai_base_url"] = openai_base_url
-            self.data_setting["openai_model"] = openai_model
-            
-            # 保存到配置文件
-            with open("demo_setting.json", "w", encoding="utf-8") as f:
-                json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
-
-            QMessageBox.information(self, "保存成功", "OpenAI配置已成功更新！\n请注意：修改配置后需要重启程序才能生效。")
-        except Exception as e:
-            QMessageBox.warning(self, "保存失败", f"无法保存OpenAI配置: {str(e)}")
-
-    def load_api_selection(self):
-        """从配置文件中加载当前API选择"""
-        try:
-            # 从data_setting中获取API选择
-            api_provider = self.data_setting.get("api_provider", "zhipu")
-            if api_provider == "openai":
-                self.api_selector.setCurrentIndex(1)
-            else:
-                # 默认选择智谱AI
-                self.api_selector.setCurrentIndex(0)
-        except Exception as e:
-            print(f"加载API选择失败: {str(e)}")
-
-    def save_api_selection(self):
-        """保存新的API选择到配置文件"""
-        current_index = self.api_selector.currentIndex()
-        api_provider = "openai" if current_index == 1 else "zhipu"
-        
-        try:
-            # 更新data_setting中的API选择
-            self.data_setting["api_provider"] = api_provider
-            # 保存到配置文件
-            with open("demo_setting.json", "w", encoding="utf-8") as f:
-                json.dump(self.data_setting, f, indent=4, ensure_ascii=False)
-
-            QMessageBox.information(self, "保存成功", "API选择已成功更新！\n请注意：修改API后需要重启程序才能生效。")
-        except Exception as e:
-            QMessageBox.warning(self, "保存失败", f"无法保存API选择: {str(e)}")
+            return int(self.data_setting.get("luminance_img", 128))
+        except (TypeError, ValueError):
+            return 128
 
     def load_gif_folders(self):
         """加载gif文件夹下的所有子文件夹"""
@@ -955,13 +997,10 @@ class VerticalTabWidget(QWidget):
             # 保存设置
             with open("demo_setting.json", "w", encoding="utf-8") as f:
                 json.dump(settings, f, ensure_ascii=False, indent=4)
-
             
-            #修改记忆可用的gif文件夹
-            zhipu.load_gif(dir_name=selected_folder)
-            messages = zhipu.load_conversation()
-            zhipu.save_conversation(identity="default", messages=messages)
-                
+            # 更新配置文件中的GIF文件夹设置
+            # 注：GIF文件夹信息已保存到配置文件中
+            
             QMessageBox.information(self, "保存成功", f"GIF文件夹已设置为: {gif_folder_path}")
         else:
             QMessageBox.warning(self, "保存失败", "请选择一个有效的GIF文件夹")
@@ -990,17 +1029,77 @@ class VerticalTabWidget(QWidget):
             with open("prompt.txt", "w", encoding="utf-8") as f:
                 f.write(new_prompt)
 
-            # 同时保存到zhipu模块的prompt缓存
-            import zhipu
-            zhipu.save_prompt(new_prompt)
-
-            # 重置对话以应用新的提示词
-            messages = zhipu.load_conversation()
-            zhipu.save_conversation(identity="default", messages=messages)
+            # 保存到配置文件并重置对话
+            # 注：AI角色设定已保存到prompt.txt文件
 
             QMessageBox.information(self, "保存成功", "AI角色设定已成功更新！\n请注意：修改角色设定后可能需要重启程序或开始新对话才能完全生效。")
         except Exception as e:
             QMessageBox.warning(self, "保存失败", f"无法保存AI角色设定: {str(e)}")
+
+    def load_openai_config(self):
+        """加载OpenAI接口配置"""
+        try:
+            # 从配置文件读取现有设置
+            api_key = self.data_setting.get("openai_key", "")
+            base_url = self.data_setting.get("openai_base_url", "https://api.openai.com/v1")
+            model = self.data_setting.get("openai_model", "gpt-3.5-turbo")
+            
+            # 设置UI控件的值
+            self.api_key_input.setText(api_key)
+            self.base_url_input.setText(base_url)
+            self.model_input.setText(model)
+                
+        except Exception as e:
+            QMessageBox.warning(self, "加载失败", f"无法加载OpenAI配置: {str(e)}")
+
+    def save_openai_config(self):
+        """保存OpenAI接口配置"""
+        api_key = self.api_key_input.text().strip()
+        base_url = self.base_url_input.text().strip()
+        model = self.model_input.text().strip()
+        
+        # 验证必填字段
+        if not api_key:
+            QMessageBox.warning(self, "配置错误", "API密钥不能为空！")
+            return
+            
+        if not base_url:
+            QMessageBox.warning(self, "配置错误", "基础URL不能为空！")
+            return
+            
+        if not model:
+            QMessageBox.warning(self, "配置错误", "请选择或输入模型名称！")
+            return
+        
+        try:
+            # 读取现有配置
+            try:
+                with open("demo_setting.json", "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+            except FileNotFoundError:
+                settings = {}
+            
+            # 更新OpenAI相关配置
+            settings["openai_key"] = api_key
+            settings["openai_base_url"] = base_url
+            settings["openai_model"] = model
+            
+            # 保存配置文件
+            with open("demo_setting.json", "w", encoding="utf-8") as f:
+                json.dump(settings, f, ensure_ascii=False, indent=4)
+            
+            # 更新内存中的配置
+            self.data_setting = settings
+            
+            QMessageBox.information(self, "保存成功", 
+                                  f"OpenAI接口配置已保存！\n"
+                                  f"API密钥: {'*' * len(api_key) if api_key else '未设置'}\n"
+                                  f"基础URL: {base_url}\n"
+                                  f"模型: {model}\n\n"
+                                  f"请重启程序以使配置生效。")
+                                  
+        except Exception as e:
+            QMessageBox.warning(self, "保存失败", f"无法保存OpenAI配置: {str(e)}")
 
     def open_prompt_file(self):
         """打开prompt.txt文件以便用户直接编辑"""
@@ -1024,9 +1123,3 @@ class VerticalTabWidget(QWidget):
             QMessageBox.information(self, "文件已打开", f"已在系统默认编辑器中打开 {prompt_path} \n编辑完成后记得保存文件。\n重启程序以应用更改。")
         except Exception as e:
             QMessageBox.warning(self, "打开失败", f"无法打开prompt.txt文件: {str(e)}\n您可以手动找到该文件进行编辑。")
-
-    def get_luminance_img_value(self):
-        try:
-            return int(self.data_setting.get("luminance_img", 128))
-        except (TypeError, ValueError):
-            return 128
