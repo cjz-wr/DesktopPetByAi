@@ -755,29 +755,10 @@ class ChatWidget(QWidget):
         )
 
     def on_ai_reply_received(self, reply):
-        # 移除"AI正在思考"提示（更可靠的删除方式）
-        try:
-            # 获取当前文本内容
-            current_text = self.chat_history.toPlainText()
-            # 查找"ICAT 正在思考..."的位置
-            thinking_index = current_text.rfind("ICAT 正在思考...")
-            if thinking_index != -1:
-                # 计算需要删除的行数
-                lines_before_thinking = current_text.count('\n', 0, thinking_index)
-                lines_after_thinking = current_text.count('\n', thinking_index)
-                
-                # 使用undo删除相应的行数
-                total_lines_to_remove = lines_after_thinking + 1  # +1 包含思考提示本身
-                for i in range(min(total_lines_to_remove, 5)):  # 最多删除5次
-                    self.chat_history.undo()
-            else:
-                # 如果没找到，使用原来的逻辑作为备选
-                for i in range(3):
-                    self.chat_history.undo()
-        except Exception as e:
-            # 如果上述方法失败，回退到原始逻辑
-            for i in range(3):
-                self.chat_history.undo()
+        # 移除"AI正在思考"提示（如果是流式输出，这个提示应该已经被替换了）
+        # 计算需要撤销的次数，每次添加消息插入了多行内容
+        for i in range(3):  # 对于添加消息时的几行内容
+            self.chat_history.undo()
         
         # 检查AI回复中是否包含DRAW指令，这是AI生成图片的特定格式
         draw_match = re.search(r'\[DRAW:\s*(.+?)\]', reply)

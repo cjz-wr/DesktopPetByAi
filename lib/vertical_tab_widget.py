@@ -704,7 +704,6 @@ class VerticalTabWidget(QWidget):
             #remove-server-button:disabled,
             #test-server-button:disabled {
                 opacity: 0.5;
-                cursor: not-allowed;
             }
             
             /* 工具信息区域 */
@@ -798,42 +797,6 @@ class VerticalTabWidget(QWidget):
         layout.addWidget(help_label)
         layout.addWidget(content_label)
         layout.addStretch()
-        
-        # 创建并注册标签
-        help_label = QLabel("<h1 style='color: black;'>帮助与关于</h1>")
-        content_label = QLabel("""
-            <p style='color: black;'><b>版本信息：</b> v2.1.5</p>
-            <p style='color: black;'><b>开发者：</b> CJZ-WR</p>
-            <p style='color: black;'><b>如有问题请提issues：</b> https://github.com/cjz-wr/DesktopPetByAi/issues</p>
-            <p style='color: black;'><b>使用说明：</b></p>
-            <ul style='color: black;'>
-                <li>在设置页面可以配置背景图片</li>
-                <li>调整透明度使图片更符合您的需求</li>
-                <li>调整亮度优化显示效果</li>
-                <li>需要自行配置API密钥</li>
-            </ul>
-            <p style='color: red; font-size: 20px;'><b>注意：</b></p>
-            <ul style='color: black;'>
-                <li>本项目仅供学习和研究使用，请勿用于商业用途。</li>
-                <li>请遵守相关法律法规，尊重知识产权。</li>
-                <li>请勿用于非法用途。如涉及侵犯他人权益的行为,与开发者无关。</li>
-            </ul>
-            <p style='color: black;'><b>更新说明：</b></p>
-            <ul style='color: black;'>
-                <li>添加openai api支持</li>
-                <li>可以调用本地模型（需自行部署）</li>
-                <li>修复一些bug</li>
-                <li>我要让她更像人,啊啊啊啊</li>
-            </ul>
-        """)
-        
-        if self.font_manager:
-            self.font_manager.register_widget(help_label)
-            self.font_manager.register_widget(content_label)
-            
-        layout.addWidget(help_label)
-        layout.addWidget(content_label)
-        layout.addStretch()
     
     def on_mcp_config_changed(self):
         """MCP配置改变时的处理"""
@@ -848,15 +811,24 @@ class VerticalTabWidget(QWidget):
         # 设置对话框样式
         font_dialog.setStyleSheet("""
             QDialog {
-                background-color: #e6f2ff; /* 淡蓝色背景 */
+                background-color: #2F4F2F; /* 深绿色背景 */
+                color: #2F4F2F; /* 深灰色字体颜色，确保高对比度和良好可读性 */
             }
             QLabel {
-                background-color: #e6f2ff;
-                color: black;
+                background-color: #f0fff0;
+                color: #2F4F2F; /* 深灰色字体颜色，确保高对比度和良好可读性 */
             }
             QPushButton {
-                background-color: #d4edff;
+                background-color: #f0fff0; /* 淡绿色背景 */
                 border: 1px solid #a0d2eb;
+                color: #2F4F2F; /* 深灰色字体颜色，确保高对比度和良好可读性 */
+            }
+            /* 其他控件样式 - 确保所有文本元素使用深灰色 */
+            QComboBox, QSpinBox, QLineEdit {
+                color: #2F4F2F; /* 深灰色字体颜色，确保高对比度和良好可读性 */
+            }
+            QListView, QListWidget {
+                color: #2F4F2F; /* 深灰色字体颜色，确保高对比度和良好可读性 */
             }
         """)
         

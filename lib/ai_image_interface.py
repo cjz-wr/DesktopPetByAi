@@ -101,11 +101,6 @@ def load_conversation_with_image(identity="default"):
     """
     GifList = load_gif()
     ImgList = load_img()
-    
-    # 确保ai_memory目录存在
-    from lib.utils import ensure_ai_memory_directory
-    ai_memory_dir = ensure_ai_memory_directory()
-    
     filename = f"ai_memory/memory_{identity}.json"
     try:
         if os.path.exists(filename):
@@ -135,10 +130,6 @@ def load_conversation_with_image(identity="default"):
     return [{"role": "system", "content": f"{respon},{use_cmd},{open_app},{HowUseGif},可用的gif有{GifList},{HowSendImg},可用的图片有{ImgList}。"}]
 
 def save_conversation(identity, messages):
-    # 确保ai_memory目录存在
-    from lib.utils import ensure_ai_memory_directory
-    ai_memory_dir = ensure_ai_memory_directory()
-    
     filename = f"ai_memory/memory_{identity}.json"
     lock = _get_lock(identity)
     with lock:

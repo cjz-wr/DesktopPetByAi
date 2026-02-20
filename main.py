@@ -187,7 +187,7 @@ class ChatDialog(QDialog):
             self.logger.info("已创建demo_setting.json文件")
         #检测ai_memory文件夹是否存在
         if not os.path.exists("ai_memory"):
-            os.makedirs("ai_memory", exist_ok=True)
+            os.mkdir("ai_memory")
             self.logger.info("已创建ai_memory文件夹")
     
     def load_conversation(self):
@@ -460,10 +460,10 @@ class DesktopPet(QMainWindow):
         try:
             with open("demo_setting.json", "r", encoding="utf-8") as f:
                 setting = json.load(f)
-            gif_name = setting.get("gif", "2.gif") # 获取GIF文件名，默认"2.gif"
+            gif_name = setting.get("gif", "闭眼.gif") # 获取GIF文件名，默认"闭眼.gif"
             
             # 使用配置中的GIF文件夹路径，如果未配置则使用默认值
-            gif_folder = setting.get("gif_folder", "gif/蜡笔小新组")
+            gif_folder = setting.get("gif_folder", "gif/猫")
             
             gif_path = gif_name
             # 如果不是绝对路径，则加上配置中的目录
@@ -471,12 +471,12 @@ class DesktopPet(QMainWindow):
                 gif_path = f"{gif_folder}/{gif_name}"
         except Exception as e:
             self.logger.error(f"读取demo_setting.json失败: {e}")
-            gif_path = "gif/2.gif"
+            gif_path = "gif/猫/闭眼.gif"
         
         # 检查GIF文件是否存在
         if not os.path.exists(gif_path):
             self.logger.warning(f"GIF文件不存在: {gif_path}，使用默认GIF")
-            gif_path = "gif/2.gif"
+            gif_path = "gif/猫/闭眼.gif"
         
         try:
             self.movie = QMovie(gif_path)
@@ -487,7 +487,7 @@ class DesktopPet(QMainWindow):
             else:
                 self.logger.warning(f"无法加载GIF文件: {gif_path}")
                 # 尝试使用默认路径
-                default_gif_path = "gif/2.gif"
+                default_gif_path = "gif/猫/闭眼.gif"
                 if os.path.exists(default_gif_path):
                     self.movie = QMovie(default_gif_path)
                     if self.movie.isValid():
@@ -535,7 +535,7 @@ class DesktopPet(QMainWindow):
     def grab_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "蜡笔小新组")
+            dir_name = setting.get("gif_folder", "猫")
         if "站起.gif" in os.listdir(f"{dir_name}"):
             self.movie = QMovie(f"{dir_name}/站起.gif")
             self.label.setMovie(self.movie)
@@ -545,7 +545,7 @@ class DesktopPet(QMainWindow):
     def eat_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "蜡笔小新组")
+            dir_name = setting.get("gif_folder", "猫")
         if "吃东西.gif" in os.listdir(f"{dir_name}"):
             # 更新设置中的GIF值
             setting["gif"] = "吃东西.gif"
@@ -561,7 +561,7 @@ class DesktopPet(QMainWindow):
     def over_eat_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "蜡笔小新组")
+            dir_name = setting.get("gif_folder", "猫")
         if "闭眼.gif" in os.listdir(f"{dir_name}"):
             # 更新设置中的GIF值
             setting["gif"] = "闭眼.gif"

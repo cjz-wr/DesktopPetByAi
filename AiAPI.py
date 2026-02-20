@@ -85,7 +85,7 @@ class AiAPI:
                 "background_path": "",
                 "transparency_img": 1.0,
                 "luminance_img": 128,
-                "gif_folder": "gif/蜡笔小新组",
+                "gif_folder": "gif/猫",
                 "openai_key": "",
                 "openai_base_url": "https://api.openai.com/v1",
                 "openai_model": "gpt-3.5-turbo",
@@ -300,11 +300,6 @@ class AiAPI:
 
         GifList = self.load_gif()
         ImgList = self.load_img()
-        
-        # 确保ai_memory目录存在
-        from lib.utils import ensure_ai_memory_directory
-        ai_memory_dir = ensure_ai_memory_directory()
-        
         filename = f"ai_memory/memory_{identity}.json"
         
         
@@ -356,10 +351,6 @@ class AiAPI:
         :param messages: 表示对话记录，是一个列表，每个元素是一个字典，包含"role"和"content"字段
         解释: 保存对话记录
         '''
-        # 确保ai_memory目录存在
-        from lib.utils import ensure_ai_memory_directory
-        ai_memory_dir = ensure_ai_memory_directory()
-        
         filename = f"ai_memory/memory_{identity}.json"
         lock = self._get_lock(identity)
         with lock:
