@@ -1,5 +1,6 @@
 demo_setting.json
 mcp_config.json
+openai_mcp.py
 
 traningai/
 dist/

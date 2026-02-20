@@ -275,6 +275,8 @@ class ChatDialog(QDialog):
         # 移除"AI正在思考"提示
         self.chat_history.undo()
         self.chat_history.undo()
+        self.chat_history.undo()
+        self.chat_history.undo()
         
         # 添加AI回复
         self.add_message("ICAT", reply, is_user=False)

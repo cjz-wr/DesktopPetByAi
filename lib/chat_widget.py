@@ -51,7 +51,7 @@ class AIWorker(QThread):
                 
                 reply = ai_api.get_ai_reply_stream(self.messages,callback)
             else:
-                reply = ai_api.get_ai_reply_sync(self.messages)
+                reply = ai_api.get_ai_reply_sync_with_mcp(self.messages)
 
             # 根据API提供商选择相应的API函数
             # if api_provider == "openai":
@@ -61,7 +61,7 @@ class AIWorker(QThread):
             #             self.token_received.emit(token)
             #         reply = openai_api.get_ai_reply_stream(self.messages, callback)
             #     else:
-            #         reply = openai_api.get_ai_reply_sync(self.messages)
+            #         reply = openai_api.get_ai_reply_sync_with_mcp(self.messages)
             # else:
             #     if self.stream_output:
             #         # 使用流式输出
@@ -69,7 +69,7 @@ class AIWorker(QThread):
             #             self.token_received.emit(token)
             #         reply = zhipu.get_ai_reply_stream(self.messages, callback)
             #     else:
-            #         reply = zhipu.get_ai_reply_sync(self.messages)
+            #         reply = zhipu.get_ai_reply_sync_with_mcp(self.messages)
                 
             self.finished.emit(reply)
         except Exception as e:
@@ -757,7 +757,7 @@ class ChatWidget(QWidget):
     def on_ai_reply_received(self, reply):
         # 移除"AI正在思考"提示（如果是流式输出，这个提示应该已经被替换了）
         # 计算需要撤销的次数，每次添加消息插入了多行内容
-        for i in range(3):  # 对于添加消息时的几行内容
+        for i in range(4):  # 对于添加消息时的几行内容
             self.chat_history.undo()
         
         # 检查AI回复中是否包含DRAW指令，这是AI生成图片的特定格式
