@@ -23,6 +23,10 @@ from lib.feeding_timer import EatingTimer, format_time
 from lib.pet_stats_manager import PetStatsManager  # 导入新的宠物状态管理模块
 import lib.LogManager as LogManager
 import logging
+
+
+from lib.pet_reminder import PetReminder
+
 # from stegano import lsb
 
 # def format_time(seconds):
@@ -238,7 +242,7 @@ class ChatDialog(QDialog):
 
     def add_system_message(self, message):
         """添加系统消息到聊天区域（便捷方法）"""
-        self.add_message("系统", message, is_user=False)
+        self.add_message("系统:", message, is_user=False)
     
     def handle_send(self):
         input_text = self.input_edit.toPlainText().strip()
@@ -332,6 +336,10 @@ class DesktopPet(QMainWindow):
         self.logger = logging.getLogger(__name__)
 
 
+
+        
+
+
         self.init_ui()
         # 修改窗口标志，添加Tool类型以避免出现在任务栏
         self.setWindowFlags(
@@ -381,6 +389,11 @@ class DesktopPet(QMainWindow):
         # 初始化系统托盘图标
         self.init_tray_icon()
 
+        # 初始化宠物提醒系统
+        self.pet_reminder = PetReminder()
+        # 不要在这里直接调用异步函数，而是在适当的时机启动
+        # self.pet_reminder.remindtalk(self)  # 错误的做法
+        
         # 以下方法已移至 lib.pet_stats_manager.PetStatsManager
 
     def reduce_pet_stats(self):
@@ -537,7 +550,7 @@ class DesktopPet(QMainWindow):
     def grab_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "猫")
+            dir_name = setting.get("gif_folder", "gif/猫")
         if "站起.gif" in os.listdir(f"{dir_name}"):
             self.movie = QMovie(f"{dir_name}/站起.gif")
             self.label.setMovie(self.movie)
@@ -547,7 +560,7 @@ class DesktopPet(QMainWindow):
     def eat_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "猫")
+            dir_name = setting.get("gif_folder", "gif/猫")
         if "吃东西.gif" in os.listdir(f"{dir_name}"):
             # 更新设置中的GIF值
             setting["gif"] = "吃东西.gif"
@@ -563,7 +576,7 @@ class DesktopPet(QMainWindow):
     def over_eat_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "猫")
+            dir_name = setting.get("gif_folder", "gif/猫")
         if "闭眼.gif" in os.listdir(f"{dir_name}"):
             # 更新设置中的GIF值
             setting["gif"] = "闭眼.gif"
@@ -903,6 +916,25 @@ class DesktopPet(QMainWindow):
             self.chat_dialog.setModal(False)
             self.chat_dialog.show()
 
+    def showEvent(self, event):
+        """窗口显示事件"""
+        super().showEvent(event)
+        # 窗口显示后启动提醒任务
+        if not hasattr(self, '_reminder_started'):
+            self._reminder_started = True
+            
+            # 启动宠物说话提醒（使用Qt定时器方式）
+            self.pet_reminder.start_talk_reminder(self, 10*60)  # 每10分钟提醒一次
+            self.pet_reminder.start_eat_reminder(self, 3*60) #每3分钟检查一次
+            self.logger.info("宠物提醒任务已启动")
+
+    def closeEvent(self, event):
+        """窗口关闭事件 - 停止提醒任务"""
+        # 停止提醒任务
+        if hasattr(self, 'pet_reminder'):
+            self.pet_reminder.stop_talk_reminder()
+            self.pet_reminder.stop_eat_reminder()
+        super().closeEvent(event)
 
     def save_eating_progress(self, progress_data):
         """保存进食进度到配置文件"""

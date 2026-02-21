@@ -79,6 +79,7 @@ def show_temp_message(parent, message, duration=1500, fade_duration=1000):
     在父窗口附近显示临时消息
     duration: 消失时间
     fade_duration: 淡出时间
+    parent: 父窗口
     """
     msg_box = TempMessageBox(message, duration, fade_duration, parent)
     

@@ -757,7 +757,7 @@ class ChatWidget(QWidget):
     def on_ai_reply_received(self, reply):
         # 移除"AI正在思考"提示（如果是流式输出，这个提示应该已经被替换了）
         # 计算需要撤销的次数，每次添加消息插入了多行内容
-        for i in range(4):  # 对于添加消息时的几行内容
+        for i in range(5):  # 对于添加消息时的几行内容
             self.chat_history.undo()
         
         # 检查AI回复中是否包含DRAW指令，这是AI生成图片的特定格式
@@ -820,7 +820,7 @@ class ChatWidget(QWidget):
     def on_image_generated(self, result, original_reply, image_prompt=None):
         """处理图片生成完成后的回调"""
         # 移除"正在生成图片"提示
-        for i in range(3):  # 移除之前的几行
+        for i in range(4):  # 移除之前的几行
             self.chat_history.undo()
             
         if result["success"]:
@@ -855,7 +855,7 @@ class ChatWidget(QWidget):
                 cleaned_text_reply = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', cleaned_text_reply).strip()
                 image_generation_info = f"{cleaned_text_reply} [IMAGE_NAME: {image_filename}] [IMAGE_PROMPT: {image_prompt}]"
                 messages.append({"role": "assistant", "content": image_generation_info})
-                zhipu.save_conversation("default", messages)
+                # zhipu.save_conversation("default", messages)
             else:
                 self.add_message("ICAT", "图片生成完成，但未能获取到图片路径", is_user=False)
         else:
@@ -885,7 +885,7 @@ class ChatWidget(QWidget):
             cleaned_original_reply = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', cleaned_original_reply).strip()
             image_generation_attempt = f"{cleaned_original_reply}\n（图片生成失败：{error_msg}）[IMAGE_PROMPT: {image_prompt}]"
             messages.append({"role": "assistant", "content": image_generation_attempt})
-            zhipu.save_conversation("default", messages)
+            # zhipu.save_conversation("default", messages)
 
         # 重新启用发送按钮
         self.send_button.setEnabled(True)
@@ -1040,7 +1040,7 @@ class ChatWidget(QWidget):
 
     def on_ai_error(self, error_msg):
         # 移除"AI正在思考"提示
-        for i in range(3):  # 对于添加消息时的几行内容
+        for i in range(4):  # 对于添加消息时的几行内容
             self.chat_history.undo()
         
         # 显示错误信息
