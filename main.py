@@ -476,6 +476,7 @@ class DesktopPet(QMainWindow):
             with open("demo_setting.json", "r", encoding="utf-8") as f:
                 setting = json.load(f)
             gif_name = setting.get("gif", "闭眼.gif") # 获取GIF文件名，默认"闭眼.gif"
+            gif_name = gif_name.strip()  # 去除可能的空白字符
             
             # 使用配置中的GIF文件夹路径，如果未配置则使用默认值
             gif_folder = setting.get("gif_folder", "gif/猫")

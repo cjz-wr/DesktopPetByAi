@@ -591,7 +591,7 @@ class ChatWidget(QWidget):
         ai_api.save_conversation("default",messages)
         
         # 更新之前的"正在分析图片"消息为AI正在思考
-        for i in range(3):  # 移除之前的几行
+        for i in range(5):  # 移除之前的几行
             self.chat_history.undo()
         self.add_message("系统", "ICAT 正在思考...", is_user=False)
         
@@ -637,7 +637,7 @@ class ChatWidget(QWidget):
         ai_api.save_conversation("default",messages)
         
         # 更新之前的"正在分析图片"消息为AI正在思考
-        for i in range(3):  # 移除之前的几行
+        for i in range(5):  # 移除之前的几行
             self.chat_history.undo()
         self.add_message("系统", "ICAT 正在思考...", is_user=False)
         
@@ -820,7 +820,7 @@ class ChatWidget(QWidget):
     def on_image_generated(self, result, original_reply, image_prompt=None):
         """处理图片生成完成后的回调"""
         # 移除"正在生成图片"提示
-        for i in range(4):  # 移除之前的几行
+        for i in range(5):  # 移除之前的几行
             self.chat_history.undo()
             
         if result["success"]:
@@ -1040,7 +1040,7 @@ class ChatWidget(QWidget):
 
     def on_ai_error(self, error_msg):
         # 移除"AI正在思考"提示
-        for i in range(4):  # 对于添加消息时的几行内容
+        for i in range(5):  # 对于添加消息时的几行内容
             self.chat_history.undo()
         
         # 显示错误信息
