@@ -104,9 +104,10 @@ class VerticalTabWidget(QWidget):
         self.tab_buttons = []
         
         # 标签名称和图标
-        tab_names = ["聊天", "设置", "帮助&关于"]
+        tab_names = ["聊天", "插件", "设置", "帮助&关于"]
         icons = [
             QStyle.StandardPixmap.SP_ComputerIcon,
+            QStyle.StandardPixmap.SP_BrowserReload,
             QStyle.StandardPixmap.SP_FileDialogDetailedView,
             QStyle.StandardPixmap.SP_DialogHelpButton
         ]
@@ -118,19 +119,23 @@ class VerticalTabWidget(QWidget):
         # 创建四个页面
         self.tab1 = QWidget()
         self.tab1.setStyleSheet("background-color: transparent;")  # 设置透明背景
-        self.tab2 = QWidget()
+        self.tab2 = QWidget()  # 插件页面
         self.tab2.setStyleSheet("background-color: transparent;")  # 设置透明背景
         self.tab3 = QWidget()
         self.tab3.setStyleSheet("background-color: transparent;")  # 设置透明背景
+        self.tab4 = QWidget()
+        self.tab4.setStyleSheet("background-color: transparent;")  # 设置透明背景
         
         self.stacked_widget.addWidget(self.tab1)
-        self.stacked_widget.addWidget(self.tab2)
+        self.stacked_widget.addWidget(self.tab2)  # 插件页面
         self.stacked_widget.addWidget(self.tab3)
+        self.stacked_widget.addWidget(self.tab4)
         
         # 初始化页面内容
         self.init_tab1_ui()
-        self.init_tab2_ui()
+        self.init_tab2_ui()  # 插件页面
         self.init_tab3_ui()
+        self.init_tab4_ui()
         
         # 创建按钮
         for i, (name, icon) in enumerate(zip(tab_names, icons)):
@@ -244,9 +249,29 @@ class VerticalTabWidget(QWidget):
         layout.addWidget(chat_widget)
     
     def init_tab2_ui(self):
+        """初始化插件管理页面"""
+        layout = QVBoxLayout(self.tab2)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 导入并添加插件页面组件
+        try:
+            from lib.plugin_page_widget import PluginPageWidget
+            plugin_widget = PluginPageWidget(self.font_manager)
+            layout.addWidget(plugin_widget)
+        except ImportError as e:
+            # 如果导入失败，显示错误信息
+            error_label = QLabel(f"插件页面加载失败: {str(e)}")
+            error_label.setStyleSheet("color: red; padding: 20px; font-size: 16px;")
+            layout.addWidget(error_label)
+        except Exception as e:
+            error_label = QLabel(f"插件页面初始化错误: {str(e)}")
+            error_label.setStyleSheet("color: red; padding: 20px; font-size: 16px;")
+            layout.addWidget(error_label)
+    
+    def init_tab3_ui(self):
         """初始化设置标签页 - 应用美化主题"""
         # 创建主布局
-        main_layout = QVBoxLayout(self.tab2)
+        main_layout = QVBoxLayout(self.tab3)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
@@ -756,14 +781,14 @@ class VerticalTabWidget(QWidget):
         """
         self.setStyleSheet(self.styleSheet() + custom_styles)
 
-    def init_tab3_ui(self):
+    def init_tab4_ui(self):
         """初始化帮助和关于标签页"""
-        layout = QVBoxLayout(self.tab3)
+        layout = QVBoxLayout(self.tab4)
         
         # 创建并注册标签
         help_label = QLabel("<h1 style='color: black;'>帮助与关于</h1>")
         content_label = QLabel("""
-            <p style='color: black;'><b>版本信息：</b> v2.1.5</p>
+            <p style='color: black;'><b>版本信息：</b> v2.1.7</p>
             <p style='color: black;'><b>开发者：</b> CJZ-WR</p>
             <p style='color: black;'><b>如有问题请提issues：</b> https://github.com/cjz-wr/DesktopPetByAi/issues</p>
             <p style='color: black;'><b>使用说明：</b></p>
@@ -782,10 +807,9 @@ class VerticalTabWidget(QWidget):
             </ul>
             <p style='color: black;'><b>更新说明：</b></p>
             <ul style='color: black;'>
-                <li>添加openai api支持</li>
-                <li>可以调用本地模型（需自行部署）</li>
-                <li>修复一些bug</li>
-                <li>添加MCP工具调用功能</li>
+                <li>添加mcp支持</li>
+                <li>修复了bug</li>
+                <li>丰富宠物的互动</li>
                 <li>我要让她更像人,啊啊啊啊</li>
             </ul>
         """)

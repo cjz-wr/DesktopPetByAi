@@ -37,6 +37,20 @@ class  PetReminder(QObject):
                         show_temp_message(self.parent(), message, duration=2000, fade_duration=1000)
             except Exception as e:
                 self.logger.warning(f"加载吃饭提醒配置失败: {e}")
+
+
+    # def _show_weather_message(self, weather_report):
+    #     if self.parent():
+    #         try:
+    #             with open("demo_setting.json", "r", encoding="utf-8") as f:
+    #                 weather = json.load(f)
+    #                 weather_y = weather.get("openai_key")
+    #                 if weather_y:
+    #                     import AiAPI
+
+    #         except Exception as e:
+    #             self.logger.warning(f"发送天气提醒失败: {e}")
+    
     
     def start_talk_reminder(self, parent, remind_time=30):
         """启动说话提醒 - 使用Qt定时器"""
@@ -90,7 +104,12 @@ class  PetReminder(QObject):
         ]
         self.eat_timer = QTimer(self)
         self.eat_timer.timeout.connect(lambda: self._show_eat_message(self.eat_list))
-        
+
+    # def _remindWeather(self):
+    #     from lib.getWeather import ai_get_local_weather
+    #     weather_report = ai_get_local_weather()
+    #     self.weather_timer = QTimer(self)
+    #     self.weather_timer.timeout.connect(lambda: self._show_weather_message(weather_report))
 
         
 

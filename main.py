@@ -852,9 +852,9 @@ class DesktopPet(QMainWindow):
 
         menu.addSeparator()  # 添加分隔符
 
-        setting_action = QAction('⚙️ 设置', self)
+        setting_action = QAction('⚙️ 更多', self)
         setting_action.triggered.connect(self.show_setting_windows)
-        menu.addAction(setting_action)  # 添加设置菜单项
+        menu.addAction(setting_action)  # 添加更多菜单项
 
         # chat_action = QAction('💬 打开聊天', self)
         # chat_action.triggered.connect(self.open_chat_dialog)

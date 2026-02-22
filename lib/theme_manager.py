@@ -200,12 +200,10 @@ class StyleHelper:
             padding: 25px;
             margin: 15px;
             border: 1px solid #E8F5E8;
-            box-shadow: 0 4px 15px rgba(143, 188, 143, 0.15);
             transition: all 0.3s ease;
         }}
         
         #{title.lower().replace(' ', '-')}-card:hover {{
-            box-shadow: 0 6px 20px rgba(143, 188, 143, 0.25);
             transform: translateY(-3px);
         }}
         
@@ -234,13 +232,11 @@ class StyleHelper:
         QPushButton:hover {{
             background-color: {color_hover};
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba({StyleHelper._hex_to_rgba(color_primary)}, 0.4);
         }}
         
         QPushButton:pressed {{
             background-color: {color_pressed};
             transform: translateY(0);
-            box-shadow: 0 2px 6px rgba({StyleHelper._hex_to_rgba(color_primary)}, 0.3);
         }}
         """
     

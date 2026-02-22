@@ -1,0 +1,18 @@
+{
+    "get_time": {
+        "discription": "获取当前系统的时间",
+        "format": "[USESKILLS:GetTime:GetTime]",
+        "usage": "必须按固定格式执行该技能",
+        "attention": "该技能会返回当前系统的时间信息",
+        "AI_can_use": true,
+        "detailed_info": false
+    },
+    "test": {
+        "discription": "wwww",
+        "format": "ww",
+        "usage": "ww",
+        "attention": "ww",
+        "AI_can_use": false,
+        "detailed_info": false
+    }
+}
