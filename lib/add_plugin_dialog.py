@@ -188,6 +188,21 @@ class AddPluginDialog(QDialog):
         """)
         form_layout.addRow("", self.detailed_checkbox)
         
+        # 外部插件选项
+        self.external_plugin_checkbox = QCheckBox("标记为外部插件")
+        self.external_plugin_checkbox.setChecked(False)
+        self.external_plugin_checkbox.setStyleSheet("""
+            QCheckBox {
+                font-size: 14px;
+                color: #2F4F2F;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+            }
+        """)
+        form_layout.addRow("", self.external_plugin_checkbox)
+        
         main_layout.addWidget(form_frame)
         
         # 按钮区域
@@ -247,7 +262,8 @@ class AddPluginDialog(QDialog):
             widgets_to_register = [
                 title_label, self.name_edit, self.desc_edit, self.format_edit,
                 self.usage_edit, self.attention_edit, self.ai_use_checkbox,
-                self.detailed_checkbox, cancel_button, confirm_button
+                self.detailed_checkbox, self.external_plugin_checkbox,
+                cancel_button, confirm_button
             ]
             for widget in widgets_to_register:
                 if hasattr(widget, 'setFont'):
@@ -262,6 +278,7 @@ class AddPluginDialog(QDialog):
         self.attention_edit.setText(plugin_data.get('attention', ''))
         self.ai_use_checkbox.setChecked(plugin_data.get('AI_can_use', True))
         self.detailed_checkbox.setChecked(plugin_data.get('detailed_info', False))
+        self.external_plugin_checkbox.setChecked(plugin_data.get('have_plugin', False))
     
     def get_plugin_data(self) -> dict:
         """
@@ -277,7 +294,8 @@ class AddPluginDialog(QDialog):
             'usage': self.usage_edit.toPlainText().strip(),
             'attention': self.attention_edit.toPlainText().strip(),
             'AI_can_use': self.ai_use_checkbox.isChecked(),
-            'detailed_info': self.detailed_checkbox.isChecked()
+            'detailed_info': self.detailed_checkbox.isChecked(),
+            'have_plugin': self.external_plugin_checkbox.isChecked()
         }
     
     def accept(self):

@@ -163,6 +163,19 @@ class PluginCardWidget(QFrame):
         """)
         status_layout.addWidget(detail_label)
         
+        # 外部插件状态 - 新增功能
+        external_status = "🔌" if self.plugin_data.get('have_plugin', False) else "💻"
+        external_text = "外部插件" if self.plugin_data.get('have_plugin', False) else "内置功能"
+        external_label = QLabel(f"{external_text}: {external_status}")
+        external_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                color: #2F4F2F;
+                font-weight: bold;
+            }
+        """)
+        status_layout.addWidget(external_label)
+        
         status_layout.addStretch()
         main_layout.addLayout(status_layout)
         

@@ -10,6 +10,10 @@ from openai import OpenAI
 from stegano import tools
 import lib.LogManager as LogManager
 import logging
+from lib.getWeather import MSWeather
+from lib.user_ip import UserIP
+from plugins_manage import PluginManager
+from lib.ues_skills import UESkills
 
 # MCP 相关导入
 try:
@@ -237,10 +241,24 @@ class AiAPI:
             return "无"
         return ", ".join([item["name"] for item in file_list])
 
+    
+    def load_skills(self):
+        with open("yyskills/SKILL.md", "r", encoding="utf-8") as f:
+            skills = f.read()
+            return skills
+        
+    def load_skills_json(self):
+        with open("yyskills/skill_list.json", "r", encoding="utf-8") as f:
+            skills_json = json.load(f)
+            return skills_json
+
     def load_conversation(self, identity="default"):
         """加载指定标识符的会话记录"""
         GifList = self.load_gif()
         ImgList = self.load_img()
+        skills = self.load_skills()
+        skills_json = self.load_skills_json()
+
         filename = f"ai_memory/memory_{identity}.json"
 
         use_cmd = (
@@ -269,16 +287,16 @@ class AiAPI:
         tools_mcp = "你可以使用外部工具查询实时信息，例如高铁票、天气等。如果需要，请直接调用相关工具。"
 
         if not os.path.exists(filename):
-            return [{"role": "system", "content": f"{respon},{tools_mcp},{sendGif},{use_cmd},{open_app},{HowUseGif},可用的gif有{self._format_file_list(GifList)};{HowSendImg},可用的图片有{self._format_file_list(ImgList)},仅能发送里面有的图片;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。;{DrawImg}"}]
+            return [{"role": "system", "content": f"{respon},{sendGif},{HowUseGif},可用的gif有{self._format_file_list(GifList)};{HowSendImg},可用的图片有{self._format_file_list(ImgList)},仅能发送里面有的图片;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。;\n{skills}\n{skills_json}"}]
 
         try:
             with open(filename, 'r', encoding='utf-8') as f:
                 messages = json.load(f)
-                messages[0]["content"] = f"{respon},{tools_mcp},{sendGif},{use_cmd},{open_app},{HowUseGif},可用的gif有{self._format_file_list(GifList)};{HowSendImg},可用的图片有{self._format_file_list(ImgList)},仅能发送里面有的图片;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。;{DrawImg}"
+                messages[0]["content"] = f"{respon},{sendGif},{HowUseGif},可用的gif有{self._format_file_list(GifList)};{HowSendImg},可用的图片有{self._format_file_list(ImgList)},仅能发送里面有的图片;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。;\n{skills}\n{skills_json}"
                 return messages
         except (json.JSONDecodeError, IOError) as e:
             self.logger.critical(f"加载历史记录失败: {e}")
-            return [{"role": "system", "content": f"{respon},{tools_mcp},{sendGif},{use_cmd},{open_app},{HowUseGif},可用的gif有{GifList};{HowSendImg},可用的图片有{ImgList},仅能发送里面有的图片;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。;{DrawImg}"}]
+            return [{"role": "system", "content": f"{respon},{sendGif},{HowUseGif},可用的gif有{self._format_file_list(GifList)};{HowSendImg},可用的图片有{self._format_file_list(ImgList)},仅能发送里面有的图片;注意:包含*SEND*标识的消息是用户发送给你的图片，请根据图片内容进行回复。;\n{skills}\n{skills_json}"}]
 
     def save_conversation(self, identity, messages):
         filename = f"ai_memory/memory_{identity}.json"
@@ -303,6 +321,8 @@ class AiAPI:
             return "检测到非法字符，请检查输入内容是否包含特殊符号（如\\uXXX）"
         except Exception as e:
             return f"写入文件失败: {e}"
+        
+    
 
     # ---------- 普通AI回复（带文本命令处理）----------
     def get_ai_reply_stream(self, messages, callback=None):
@@ -325,6 +345,11 @@ class AiAPI:
                         print(content_part, end='', flush=True)
 
             print()  # 换行
+
+            
+                    
+                    
+
 
             # 提取GIF
             pattern_filename = r'\[GIF:([^\]]+)\]'
@@ -430,6 +455,43 @@ class AiAPI:
                 if hasattr(response2, "choices") and response2.choices:
                     return response2.choices[0].message.content
                 return "AI接口无有效回复(二次)"
+            
+            Weather_get = r'\[Weather:([^\]]*)\]'
+            matches_weather = re.findall(Weather_get, reply)
+            if matches_weather:
+                self.logger.info(f"检测到天气查询指令: {matches_weather[0]}")
+                if matches_weather[0] == "LocalWeather":
+                    user_address = UserIP().sendAddress()
+                    self.logger.info(f"获取用户地址: {user_address}")
+                    reply = MSWeather(user_address).return_to_ai()
+                    # MSWeather_msg = [{"role": "system", "content": "总结后输出"},{"role": "user", "content": reply}]
+                    # reply = self.get_ai_reply_stream(MSWeather_msg, callback=callback)
+
+                else:
+                    self.logger.info(f"获取{matches_weather[0]}的天气信息")
+                    reply = MSWeather(matches_weather[0]).return_to_ai()
+
+            skills_get = r'\[USESKILLS:([^\]]*)\]'
+            matches_skills = re.findall(skills_get, reply)
+            if matches_skills:
+                self.logger.info(f"检测到技能调用指令: {matches_skills[0]}")
+                reply = UESkills(matches_skills[0]).analyze_skill()
+                messages.append({"role": "user", "content": f"[System]技能返回的结果为: {reply}"})
+                reply = self.get_ai_reply_stream(messages)
+                # skills_ls = matches_skills[0].split(":")
+
+                # #面对调用技能没有参数的情况
+                # if skills_ls[0] == skills_ls[1]:
+                #     skills_json = self.load_skills_json()
+
+                #     #面对有外部插件的情况
+                #     if skills_json[skills_ls[0]]["have_plugin"]:
+                #         plugins = PluginManager.load_plugins()
+                #         plugin_response = PluginManager.call_plugin(plugins, skills_ls[0])
+                #         messages.append({"role": "user", "content": f"[System]插件返回的结果为: {plugin_response}"})
+                #         reply = self.get_ai_reply_stream(messages)
+
+
             return reply
         except Exception as e:
             return f"AI请求失败: {e}"

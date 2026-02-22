@@ -1,11 +1,12 @@
 {
-    "get_time": {
+    "GetTime": {
         "discription": "获取当前系统的时间",
         "format": "[USESKILLS:GetTime:GetTime]",
         "usage": "必须按固定格式执行该技能",
         "attention": "该技能会返回当前系统的时间信息",
         "AI_can_use": true,
-        "detailed_info": false
+        "detailed_info": false,
+        "have_plugin": true
     },
     "test": {
         "discription": "wwww",
@@ -13,6 +14,16 @@
         "usage": "ww",
         "attention": "ww",
         "AI_can_use": false,
-        "detailed_info": false
+        "detailed_info": false,
+        "have_plugin": false
+    },
+    "aa": {
+        "discription": "aaa",
+        "format": "aaa",
+        "usage": "aaa",
+        "attention": "aaa",
+        "AI_can_use": false,
+        "detailed_info": false,
+        "have_plugin": false
     }
 }
