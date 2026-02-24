@@ -807,10 +807,8 @@ class VerticalTabWidget(QWidget):
             </ul>
             <p style='color: black;'><b>更新说明：</b></p>
             <ul style='color: black;'>
-                <li>添加mcp支持</li>
-                <li>修复了bug</li>
-                <li>丰富宠物的互动</li>
-                <li>我要让她更像人,啊啊啊啊</li>
+                <li>添加了插件功能</li>
+                <li>修复了一些bug</li>
             </ul>
         """)
         
