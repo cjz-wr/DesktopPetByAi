@@ -65,6 +65,7 @@ On the screen, a digital pet chants with me.
 [![GitHub stars](https://img.shields.io/github/stars/cjz-wr/DesktopPetByAi?style=social)](https://github.com/cjz-wr/DesktopPetByAi) [![License](https://img.shields.io/github/license/cjz-wr/DesktopPetByAi)](LICENSE) [![GitHub release](https://img.shields.io/github/v/release/cjz-wr/DesktopPetByAi)](https://github.com/cjz-wr/DesktopPetByAi/releases) [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)]() [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]() [![No Telemetry](https://img.shields.io/badge/no--telemetry-true-blue)]()
 
 项目介绍网站:[DesktopPetByAi - 智能桌面宠物助手](https://cjz-wr.github.io/DesktopPetByAiWeb/)
+项目使用&开发文档:[DesktopPetByAi - 智能桌面宠物助手](https://cjz-wr.github.io/DesktopPetByAi-Document/)
 
 项目交流群&反馈:1082360650![QQ Group](https://img.shields.io/badge/QQ群-1082360650-orange?logo=tencent-qq&logoColor=white)
 
