@@ -33,6 +33,7 @@ class AIWorker(QThread):
         super().__init__(parent)
         self.messages = messages # AI 对话消息列表
         self.stream_output = stream_output  # 是否使用流式输出
+        self.stream_output = True
 
     def run(self):
         try:
@@ -384,9 +385,9 @@ class ChatWidget(QWidget):
             elif msg['role'] == 'assistant':
                 # 检查AI回复是否包含图片引用
                 content = msg['content']
-                if "[IMAGE_NAME:" in content:
+                if "[IMAGE:" in content:
                     # 提取图片名称
-                    reply_img = re.search(r'\[IMAGE_NAME:\s*(.+?)\]', content).group(1).strip()
+                    reply_img = re.search(r'\[IMAGE:\s*(.+?)\]', content).group(1).strip()
                     
                     # 首先尝试在imgs目录查找（原有的表情包）
                     imgPath = os.path.join("imgs", reply_img)
@@ -407,7 +408,7 @@ class ChatWidget(QWidget):
                         #改为绝对路径
                         imgPath = os.path.abspath(imgPath)
                         #提取纯文本内容，同时去除IMAGE_PROMPT信息
-                        text_content = content.replace(f"[IMAGE_NAME: {reply_img}]", "").strip()
+                        text_content = content.replace(f"[IMAGE: {reply_img}]", "").strip()
                         # 去除IMAGE_PROMPT标记
                         text_content = re.sub(r'\[IMAGE_PROMPT:\s*.+?\]', '', text_content).strip()
                         if text_content != "":
@@ -432,7 +433,7 @@ class ChatWidget(QWidget):
                             self.input_edit.setEnabled(True)
                             self.image_button.setEnabled(True)
                 else:
-                    # 检查是否包含IMAGE_PROMPT但没有IMAGE_NAME（可能是生成失败的情况）
+                    # 检查是否包含IMAGE_PROMPT但没有IMAGE（可能是生成失败的情况）
                     if "[IMAGE_PROMPT:" in content:
                         # 提取提示词信息并显示
                         prompt_match = re.search(r'\[IMAGE_PROMPT:\s*(.+?)\]', content)
@@ -498,7 +499,7 @@ class ChatWidget(QWidget):
                 "content": message,
                 "image_path": image_path
             }
-        elif sender == "ICAT" and "[IMAGE_NAME:" in message:
+        elif sender == "ICAT" and "[IMAGE:" in message:
             # AI回复包含图片的情况，保持原有格式
             message_data = {
                 "role": "assistant", 
@@ -827,8 +828,8 @@ class ChatWidget(QWidget):
             # 获取生成的图片路径
             image_path = result.get("image_path", "")
             if image_path:
-                # 提取原始文字内容，去除IMAGE_NAME和IMAGE_PROMPT标记
-                text_content = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+                # 提取原始文字内容，去除IMAGE和IMAGE_PROMPT标记
+                text_content = re.sub(r'\[IMAGE:[^\]]*\]', '', original_reply).strip()
                 text_content = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', text_content).strip()
                 
                 # 添加AI回复，包含原始文字内容和生成的图片
@@ -850,10 +851,10 @@ class ChatWidget(QWidget):
                     image_prompt = self.extract_image_prompt(original_reply)
                 # 保存时使用图片文件名，而不是完整路径，这样在不同环境下都可以正确加载
                 image_filename = os.path.basename(image_path)
-                # 清理可能存在的嵌套IMAGE_NAME和IMAGE_PROMPT标记
-                cleaned_text_reply = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+                # 清理可能存在的嵌套IMAGE和IMAGE_PROMPT标记
+                cleaned_text_reply = re.sub(r'\[IMAGE:[^\]]*\]', '', original_reply).strip()
                 cleaned_text_reply = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', cleaned_text_reply).strip()
-                image_generation_info = f"{cleaned_text_reply} [IMAGE_NAME: {image_filename}] [IMAGE_PROMPT: {image_prompt}]"
+                image_generation_info = f"{cleaned_text_reply} [IMAGE: {image_filename}] [IMAGE_PROMPT: {image_prompt}]"
                 messages.append({"role": "assistant", "content": image_generation_info})
                 # zhipu.save_conversation("default", messages)
             else:
@@ -863,7 +864,7 @@ class ChatWidget(QWidget):
             error_msg = result.get("error", "未知错误")
             
             # 提取原始文字内容，即使图片生成失败也要显示
-            text_content = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+            text_content = re.sub(r'\[IMAGE:[^\]]*\]', '', original_reply).strip()
             text_content = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', text_content).strip()
             
             # 如果有原始文字内容，显示文字内容和错误信息
@@ -880,8 +881,8 @@ class ChatWidget(QWidget):
             # 如果没有传入image_prompt，则尝试从original_reply中提取
             if not image_prompt:
                 image_prompt = self.extract_image_prompt(original_reply)
-            # 清理可能存在的嵌套IMAGE_NAME和IMAGE_PROMPT标记
-            cleaned_original_reply = re.sub(r'\[IMAGE_NAME:[^\]]*\]', '', original_reply).strip()
+            # 清理可能存在的嵌套IMAGE和IMAGE_PROMPT标记
+            cleaned_original_reply = re.sub(r'\[IMAGE:[^\]]*\]', '', original_reply).strip()
             cleaned_original_reply = re.sub(r'\[IMAGE_PROMPT:[^\]]*\]', '', cleaned_original_reply).strip()
             image_generation_attempt = f"{cleaned_original_reply}\n（图片生成失败：{error_msg}）[IMAGE_PROMPT: {image_prompt}]"
             messages.append({"role": "assistant", "content": image_generation_attempt})
@@ -920,19 +921,19 @@ class ChatWidget(QWidget):
 
     def finish_ai_reply_without_image(self, reply):
         """处理不需要生成图片的AI回复"""
-        if "[IMAGE_NAME:" in reply:
-            reply_img = re.search(r'\[IMAGE_NAME:\s*(.+?)\]', reply).group(1).strip()
+        if "[IMAGE:" in reply:
+            reply_img = re.search(r'\[IMAGE:\s*(.+?)\]', reply).group(1).strip()
             imgPath = os.path.join("imgs", reply_img)
             #判断图片是否存在
             if os.path.exists(imgPath):
                 #改为绝对路径
                 imgPath = os.path.abspath(imgPath)
-                # print(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
-                self.logger.debug(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
+                # print(reply.replace(f"[IMAGE: {reply_img}]", "").strip())
+                self.logger.debug(reply.replace(f"[IMAGE: {reply_img}]", "").strip())
 
-                if reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip() != "":
-                    self.add_message("ICAT", reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip(), is_user=False, image_path=imgPath)
-                    toVoice.TextToSpeech().speak_async(reply.replace(f"[IMAGE_NAME: {reply_img}]", "").strip())
+                if reply.replace(f"[IMAGE: {reply_img}]", "").strip() != "":
+                    self.add_message("ICAT", reply.replace(f"[IMAGE: {reply_img}]", "").strip(), is_user=False, image_path=imgPath)
+                    toVoice.TextToSpeech().speak_async(reply.replace(f"[IMAGE: {reply_img}]", "").strip())
                 else:
                     self.add_message("ICAT", "", is_user=False, image_path=imgPath)
             else:

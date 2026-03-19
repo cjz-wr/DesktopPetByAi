@@ -5,7 +5,7 @@ import re
 import threading
 import subprocess
 import html
-from typing import Optional, Dict, Any, Callable, List
+from typing import Optional, Dict, Any, Callable
 from openai import OpenAI
 from stegano import tools
 import lib.LogManager as LogManager
@@ -43,12 +43,10 @@ class AiAPI:
         self.LoadSetting()
         self.selectAi()
 
-        # MCP 相关（线程安全版）
+        # MCP 相关
         self.mcp_manager: Optional[MCPManager] = None
         self.mcp_enabled = False
-        self.mcp_loop: Optional[asyncio.AbstractEventLoop] = None
-        self.mcp_thread: Optional[threading.Thread] = None
-        self._mcp_ready = asyncio.Event()  # 用于等待MCP初始化完成
+        self._mcp_initialized_event = threading.Event()  # 用于等待MCP初始化完成
         self.initialize_mcp()
 
     # ---------- 配置加载 ----------
@@ -117,55 +115,42 @@ class AiAPI:
         )
         return "openai"
 
-    # ---------- MCP 初始化（线程安全版）----------
+    # ---------- MCP 初始化 ----------
     def initialize_mcp(self):
-        """在后台线程中初始化MCP管理器并运行事件循环"""
+        """在后台线程中初始化MCP管理器"""
         if not MCP_ENABLED:
             self.logger.info("MCP功能未启用")
-            self._mcp_ready.set()  # 标记完成（无MCP）
+            self._mcp_initialized_event.set()  # 标记完成（无MCP）
             return
 
-        def run_mcp_loop():
-            asyncio.set_event_loop(self.mcp_loop)
+        def init_mcp_sync():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
-                # 在MCP循环中创建管理器
-                self.mcp_manager = self.mcp_loop.run_until_complete(create_mcp_manager())
+                self.mcp_manager = loop.run_until_complete(create_mcp_manager())
                 self.mcp_enabled = True
                 self.logger.info("MCP管理器初始化成功")
-                self.mcp_loop.call_soon_threadsafe(self._mcp_ready.set)
-                # 保持循环运行，等待后续任务
-                self.mcp_loop.run_forever()
             except Exception as e:
                 self.logger.error(f"MCP管理器初始化失败: {e}")
-                self.mcp_loop.call_soon_threadsafe(self._mcp_ready.set)
             finally:
-                self.mcp_loop.close()
+                self._mcp_initialized_event.set()
+                loop.close()
 
-        self.mcp_loop = asyncio.new_event_loop()
-        self.mcp_thread = threading.Thread(target=run_mcp_loop, daemon=True)
-        self.mcp_thread.start()
+        mcp_thread = threading.Thread(target=init_mcp_sync, daemon=True)
+        mcp_thread.start()
 
-    async def wait_for_mcp_ready(self, timeout: float = 5.0) -> bool:
+    def _wait_for_mcp_initialized(self, timeout: float = 5.0) -> bool:
         """等待MCP初始化完成，超时返回False"""
         if not MCP_ENABLED:
             return False
-        try:
-            await asyncio.wait_for(self._mcp_ready.wait(), timeout)
-            return self.mcp_enabled
-        except asyncio.TimeoutError:
-            return False
+        return self._mcp_initialized_event.wait(timeout)
 
+    # ---------- 工具调用辅助 ----------
     async def call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
-        """跨线程调用MCP工具（异步安全）"""
+        """调用MCP工具（异步）"""
         if not self.mcp_enabled or not self.mcp_manager:
             return None
-        # 将调用提交到MCP事件循环，并返回一个可等待的Future
-        future = asyncio.run_coroutine_threadsafe(
-            self.mcp_manager.call_tool(tool_name, arguments),
-            self.mcp_loop
-        )
-        # 将concurrent.futures.Future转换为asyncio.Future
-        return await asyncio.wrap_future(future)
+        return await self.mcp_manager.call_tool(tool_name, arguments)
 
     # ---------- 会话管理 ----------
     def _get_lock(self, identity):
@@ -256,11 +241,12 @@ class AiAPI:
             return "无"
         return ", ".join([item["name"] for item in file_list])
 
+    
     def load_skills(self):
         with open("yyskills/SKILL.md", "r", encoding="utf-8") as f:
             skills = f.read()
             return skills
-
+        
     def load_skills_json(self):
         with open("yyskills/skill_list.json", "r", encoding="utf-8") as f:
             skills_json = json.load(f)
@@ -335,25 +321,312 @@ class AiAPI:
             return "检测到非法字符，请检查输入内容是否包含特殊符号（如\\uXXX）"
         except Exception as e:
             return f"写入文件失败: {e}"
+        
+    
 
-    # ---------- 核心AI回复方法（支持MCP工具调用 + 自定义命令）----------
-    async def get_ai_reply_with_mcp(self, messages: List[dict], callback: Optional[Callable[[str], None]] = None) -> str:
+    # ---------- 普通AI回复（带文本命令处理）----------
+    def get_ai_reply_stream(self, messages, callback=None):
+        """流式获取AI回复，支持回调函数处理每部分输出，并处理 [USE_cmd:] 命令"""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.MODEL,
+                messages=messages,
+                stream=True
+            )
+
+            reply = ""
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    content_part = chunk.choices[0].delta.content
+                    reply += content_part
+                    if callback:
+                        callback(content_part)
+                    else:
+                        print(content_part, end='', flush=True)
+
+            print()  # 换行
+
+            
+                    
+                    
+
+
+            # 提取GIF
+            pattern_filename = r'\[GIF:([^\]]+)\]'
+            matches_filename = re.findall(pattern_filename, reply)
+            if not matches_filename:
+                self.logger.warning("未找到GIF文件名")
+                matches_filename = ["走路"]
+            # 规范化GIF文件名，避免重复扩展名
+            gif_filename = matches_filename[0]
+            if gif_filename.endswith('.gif'):
+                gif_name = gif_filename
+            else:
+                gif_name = gif_filename + ".gif"
+            reply = reply.replace(f"[GIF:{matches_filename[0]}]", "").strip()
+
+            # 保存GIF到配置
+            self._save_gif_to_config(gif_name)
+
+            # 检查是否包含 [USE_cmd:xxx]
+            use_cmd_pattern = r"\[USE_cmd:(.+?)\]"
+            match = re.search(use_cmd_pattern, reply)
+
+            if match:
+                keyword = match.group(1).strip()
+
+                # 处理 write_code 指令
+                write_code_match = re.match(r"^write_code\s+([^\s]+)\s+([\s\S]+)$", keyword)
+                if write_code_match:
+                    file_name = write_code_match.group(1)
+                    code_content = write_code_match.group(2)
+                    if not code_content.strip():
+                        result = "未检测到有效代码内容，请用 write_code 指令并附上完整代码。"
+                    else:
+                        # 处理转义字符
+                        try:
+                            code_content = code_content.encode('utf-8').decode('unicode_escape')
+                        except Exception:
+                            code_content = code_content.replace('\\n', '\n').replace('\\t', '\t')
+                        result = self.write_code_file(file_name, code_content)
+                    messages.append({"role": "user", "content": f"[USE_cmd:write_code]结果：{result}"})
+                else:
+                    # 处理 echo 指令
+                    echo_single_match = re.match(r"^echo\s+'([\s\S]+)'\s+>\s*([^\s]+)$", keyword)
+                    echo_append_match = re.match(r"^echo\s+'([\s\S]+)'\s+>>\s*([^\s]+)$", keyword)
+                    if echo_single_match or echo_append_match:
+                        if not hasattr(self.get_ai_reply_stream, '_echo_cache'):
+                            self.get_ai_reply_stream._echo_cache = {}
+                        echo_cache = self.get_ai_reply_stream._echo_cache
+                        if echo_single_match:
+                            file_name = echo_single_match.group(2)
+                            code_content = echo_single_match.group(1)
+                            echo_cache[file_name] = [code_content]
+                            result = f"准备写入: {file_name}"
+                        else:  # append
+                            file_name = echo_append_match.group(2)
+                            code_content = echo_append_match.group(1)
+                            if file_name not in echo_cache:
+                                echo_cache[file_name] = []
+                            echo_cache[file_name].append(code_content)
+                            result = f"追加内容: {file_name}"
+
+                        # 判断下一条是否还是echo
+                        next_is_echo = False
+                        if len(messages) > 0 and isinstance(messages[-1], dict):
+                            last_content = messages[-1].get('content', '')
+                            if re.match(r"\[USE_cmd:echo", last_content):
+                                next_is_echo = True
+                        if not next_is_echo:
+                            code_content_fixed = '\n'.join(echo_cache[file_name])
+                            code_content_fixed = html.unescape(code_content_fixed)
+                            code_content_fixed = code_content_fixed.encode('utf-8').decode('unicode_escape')
+                            code_content_fixed = code_content_fixed.replace('\\n', '\n').replace('\\t', '\t')
+                            result = self.write_code_file(file_name, code_content_fixed)
+                            messages.append({"role": "user", "content": f"[USE_cmd:echo]结果：{result}"})
+                    else:
+                        # 普通命令执行
+                        try:
+                            result = subprocess.run(
+                                ["powershell", "-Command", keyword],
+                                capture_output=True, text=True)
+                            stdout = result.stdout.strip()
+                            stderr = result.stderr.strip()
+                            stdout = stdout.encode('utf-8', errors='replace').decode('utf-8')
+                            stderr = stderr.encode('utf-8', errors='replace').decode('utf-8')
+                            cmd_result = ""
+                            if stdout:
+                                cmd_result += f"STDOUT:\n{stdout}\n"
+                            if stderr:
+                                cmd_result += f"STDERR:\n{stderr}\n"
+                            cmd_result = cmd_result.strip()
+                            final_result = f"命令执行完成: {keyword}\n{cmd_result}"
+                        except Exception as e:
+                            final_result = f"命令执行失败: {e}"
+
+                        messages.append({"role": "user", "content": f"[USE_cmd:{keyword}]结果：{final_result}"})
+
+                # 再次请求AI
+                response2 = self.client.chat.completions.create(
+                    model=self.MODEL,
+                    messages=messages,
+                    stream=False
+                )
+                if hasattr(response2, "choices") and response2.choices:
+                    return response2.choices[0].message.content
+                return "AI接口无有效回复(二次)"
+            
+            Weather_get = r'\[Weather:([^\]]*)\]'
+            matches_weather = re.findall(Weather_get, reply)
+            if matches_weather:
+                self.logger.info(f"检测到天气查询指令: {matches_weather[0]}")
+                if matches_weather[0] == "LocalWeather":
+                    user_address = UserIP().sendAddress()
+                    self.logger.info(f"获取用户地址: {user_address}")
+                    reply = MSWeather(user_address).return_to_ai()
+                    # MSWeather_msg = [{"role": "system", "content": "总结后输出"},{"role": "user", "content": reply}]
+                    # reply = self.get_ai_reply_stream(MSWeather_msg, callback=callback)
+
+                else:
+                    self.logger.info(f"获取{matches_weather[0]}的天气信息")
+                    reply = MSWeather(matches_weather[0]).return_to_ai()
+
+            skills_get = r'\[USESKILLS:([^\]]*)\]'
+            matches_skills = re.findall(skills_get, reply)
+            if matches_skills:
+                self.logger.info(f"检测到技能调用指令: {matches_skills[0]}")
+                reply = UESkills(matches_skills[0]).analyze_skill()
+                messages.append({"role": "user", "content": f"[System]技能返回的结果为: {reply}"})
+                reply = self.get_ai_reply_stream(messages)
+                # skills_ls = matches_skills[0].split(":")
+
+                # #面对调用技能没有参数的情况
+                # if skills_ls[0] == skills_ls[1]:
+                #     skills_json = self.load_skills_json()
+
+                #     #面对有外部插件的情况
+                #     if skills_json[skills_ls[0]]["have_plugin"]:
+                #         plugins = PluginManager.load_plugins()
+                #         plugin_response = PluginManager.call_plugin(plugins, skills_ls[0])
+                #         messages.append({"role": "user", "content": f"[System]插件返回的结果为: {plugin_response}"})
+                #         reply = self.get_ai_reply_stream(messages)
+
+
+            return reply
+        except Exception as e:
+            return f"AI请求失败: {e}"
+
+    def get_ai_reply_sync(self, messages):
+        """同步获取AI回复，处理 [USE_cmd:] 命令"""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.MODEL,
+                messages=messages
+            )
+            if hasattr(response, "choices") and response.choices:
+                reply = response.choices[0].message.content
+                self.logger.debug(f"AI回复: {reply}")
+
+                # 提取GIF
+                pattern_filename = r'\[GIF:([^\]]+)\]'
+                matches_filename = re.findall(pattern_filename, reply)
+                if not matches_filename:
+                    self.logger.warning("未找到GIF文件名")
+                    matches_filename = ["走路"]
+                # 规范化GIF文件名，避免重复扩展名
+                gif_filename = matches_filename[0]
+                if gif_filename.endswith('.gif'):
+                    gif_name = gif_filename
+                else:
+                    gif_name = gif_filename + ".gif"
+                reply = reply.replace(f"[GIF:{matches_filename[0]}]", "").strip()
+                self._save_gif_to_config(gif_name)
+
+                # 检查 [USE_cmd:]
+                use_cmd_pattern = r"\[USE_cmd:(.+?)\]"
+                match = re.search(use_cmd_pattern, reply)
+
+                if match:
+                    keyword = match.group(1).strip()
+
+                    # 处理 write_code
+                    write_code_match = re.match(r"^write_code\s+([^\s]+)\s+([\s\S]+)$", keyword)
+                    if write_code_match:
+                        file_name = write_code_match.group(1)
+                        code_content = write_code_match.group(2)
+                        if not code_content.strip():
+                            result = "未检测到有效代码内容，请用 write_code 指令并附上完整代码。"
+                        else:
+                            try:
+                                code_content = code_content.encode('utf-8').decode('unicode_escape')
+                            except Exception:
+                                code_content = code_content.replace('\\n', '\n').replace('\\t', '\t')
+                            result = self.write_code_file(file_name, code_content)
+                        messages.append({"role": "user", "content": f"[USE_cmd:write_code]结果：{result}"})
+                    else:
+                        # 处理 echo
+                        echo_single_match = re.match(r"^echo\s+'([\s\S]+)'\s+>\s*([^\s]+)$", keyword)
+                        echo_append_match = re.match(r"^echo\s+'([\s\S]+)'\s+>>\s*([^\s]+)$", keyword)
+                        if echo_single_match or echo_append_match:
+                            if not hasattr(self.get_ai_reply_sync, '_echo_cache'):
+                                self.get_ai_reply_sync._echo_cache = {}
+                            echo_cache = self.get_ai_reply_sync._echo_cache
+                            if echo_single_match:
+                                file_name = echo_single_match.group(2)
+                                code_content = echo_single_match.group(1)
+                                echo_cache[file_name] = [code_content]
+                                result = f"准备写入: {file_name}"
+                            else:
+                                file_name = echo_append_match.group(2)
+                                code_content = echo_append_match.group(1)
+                                if file_name not in echo_cache:
+                                    echo_cache[file_name] = []
+                                echo_cache[file_name].append(code_content)
+                                result = f"追加内容: {file_name}"
+
+                            next_is_echo = False
+                            if len(messages) > 0 and isinstance(messages[-1], dict):
+                                last_content = messages[-1].get('content', '')
+                                if re.match(r"\[USE_cmd:echo", last_content):
+                                    next_is_echo = True
+                            if not next_is_echo:
+                                code_content_fixed = '\n'.join(echo_cache[file_name])
+                                code_content_fixed = html.unescape(code_content_fixed)
+                                code_content_fixed = code_content_fixed.encode('utf-8').decode('unicode_escape')
+                                code_content_fixed = code_content_fixed.replace('\\n', '\n').replace('\\t', '\t')
+                                result = self.write_code_file(file_name, code_content_fixed)
+                                messages.append({"role": "user", "content": f"[USE_cmd:echo]结果：{result}"})
+                        else:
+                            # 普通命令
+                            try:
+                                result = subprocess.run(
+                                    ["powershell", "-Command", keyword],
+                                    capture_output=True, text=True)
+                                stdout = result.stdout.strip()
+                                stderr = result.stderr.strip()
+                                stdout = stdout.encode('utf-8', errors='replace').decode('utf-8')
+                                stderr = stderr.encode('utf-8', errors='replace').decode('utf-8')
+                                cmd_result = ""
+                                if stdout:
+                                    cmd_result += f"STDOUT:\n{stdout}\n"
+                                if stderr:
+                                    cmd_result += f"STDERR:\n{stderr}\n"
+                                cmd_result = cmd_result.strip()
+                                final_result = f"命令执行完成: {keyword}\n{cmd_result}"
+                            except Exception as e:
+                                final_result = f"命令执行失败: {e}"
+
+                            messages.append({"role": "user", "content": f"[USE_cmd:{keyword}]结果：{final_result}"})
+
+                    # 再次请求AI
+                    response2 = self.client.chat.completions.create(
+                        model=self.MODEL,
+                        messages=messages
+                    )
+                    if hasattr(response2, "choices") and response2.choices:
+                        return response2.choices[0].message.content
+                    return "AI接口无有效回复(二次)"
+                return reply
+            return "AI接口无有效回复"
+        except Exception as e:
+            return f"AI请求失败: {e}"
+
+    # ---------- MCP AI回复（工具调用）----------
+    async def get_ai_reply_with_mcp(self, messages: list, callback: Optional[Callable[[str], None]] = None) -> str:
         """
-        支持MCP工具调用的流式AI回复方法，同时处理自定义命令（[USE_cmd:], [Weather:], [USESKILLS:]）
+        支持MCP工具调用的流式AI回复方法
         :param messages: 对话历史
         :param callback: 可选回调，用于实时输出内容块
         :return: 最终回复字符串
         """
-        # 等待MCP初始化完成
-        if not await self.wait_for_mcp_ready():
-            self.logger.warning("MCP未就绪，回退到普通模式（无工具调用）")
-            # 如果没有MCP，仍然可以继续，只是没有tools参数
-            openai_tools = []
-        else:
-            openai_tools = self.mcp_manager.get_tools_for_openai() if self.mcp_enabled else []
+        # 等待MCP初始化完成（最多5秒）
+        if not self._wait_for_mcp_initialized():
+            self.logger.warning("MCP未就绪，回退到普通模式")
+            return self.get_ai_reply_stream(messages, callback)
 
         # 复制消息列表，避免修改外部
         working_messages = messages.copy()
+        openai_tools = self.mcp_manager.get_tools_for_openai() if self.mcp_enabled else []
 
         while True:
             request_params = {
@@ -422,10 +695,10 @@ class AiAPI:
 
             working_messages.append(assistant_msg)
 
-            # 如果没有工具调用，则跳出循环，准备处理自定义命令
+            # 如果没有工具调用，结束循环
             if not assistant_msg.get("tool_calls"):
-                final_reply = collected_content
-                break
+                # 后处理（提取GIF等）
+                return self._post_process_reply(collected_content)
 
             # 处理工具调用
             for tool_call in assistant_msg["tool_calls"]:
@@ -438,8 +711,7 @@ class AiAPI:
                 else:
                     self.logger.info(f"调用MCP工具 {func_name} 参数: {func_args}")
                     try:
-                        # 使用跨线程安全的 call_mcp_tool
-                        result = await self.call_mcp_tool(func_name, func_args)
+                        result = await self.mcp_manager.call_tool(func_name, func_args)
                         content = str(result) if result is not None else "工具未返回结果"
                     except Exception as e:
                         content = f"工具调用失败: {e}"
@@ -454,144 +726,12 @@ class AiAPI:
 
             # 继续循环，让AI基于工具结果再次生成
 
-        # ---------- 处理自定义命令（[USE_cmd:], [Weather:], [USESKILLS:]）----------
-        # 这些命令可能出现在 final_reply 中，需要递归执行
-        # 使用正则检测所有可能的命令
-        combined_pattern = r'\[(USE_cmd|Weather|USESKILLS):(.*?)\]'
-        matches = re.findall(combined_pattern, final_reply)
-        if not matches:
-            # 没有命令，直接后处理并返回
-            return self._post_process_reply(final_reply)
-
-        # 有命令，逐个处理（通常一次只会有一个命令，但以防万一）
-        for cmd_type, cmd_content in matches:
-            if cmd_type == "USE_cmd":
-                # 处理 [USE_cmd:...]
-                result = await self._handle_use_cmd(cmd_content.strip(), working_messages)
-            elif cmd_type == "Weather":
-                # 处理 [Weather:...]
-                result = await self._handle_weather(cmd_content.strip())
-            elif cmd_type == "USESKILLS":
-                # 处理 [USESKILLS:...]
-                result = await self._handle_skills(cmd_content.strip(), working_messages)
-            else:
-                continue
-
-            # 将结果作为用户消息加入历史，并重新调用AI
-            working_messages.append({"role": "user", "content": result})
-            # 递归调用自身（异步），注意 callback 需要继续传递
-            return await self.get_ai_reply_with_mcp(working_messages, callback)
-
-        # 如果没有匹配到命令（理论上不会走到这里）
-        return self._post_process_reply(final_reply)
-
-    # ---------- 自定义命令处理辅助方法（异步）----------
-    async def _handle_use_cmd(self, cmd_text: str, messages: List[dict]) -> str:
-        """处理 [USE_cmd:] 命令，返回需要追加到对话的结果文本"""
-        # 检查是否是 write_code 指令
-        write_code_match = re.match(r"^write_code\s+([^\s]+)\s+([\s\S]+)$", cmd_text)
-        if write_code_match:
-            file_name = write_code_match.group(1)
-            code_content = write_code_match.group(2)
-            if not code_content.strip():
-                return "[USE_cmd:write_code]结果：未检测到有效代码内容"
-            # 处理转义字符
-            try:
-                code_content = code_content.encode('utf-8').decode('unicode_escape')
-            except Exception:
-                code_content = code_content.replace('\\n', '\n').replace('\\t', '\t')
-            # 写文件（同步I/O放到线程池）
-            result = await asyncio.to_thread(self.write_code_file, file_name, code_content)
-            return f"[USE_cmd:write_code]结果：{result}"
-
-        # 检查 echo 指令
-        echo_single_match = re.match(r"^echo\s+'([\s\S]+)'\s+>\s*([^\s]+)$", cmd_text)
-        echo_append_match = re.match(r"^echo\s+'([\s\S]+)'\s+>>\s*([^\s]+)$", cmd_text)
-        if echo_single_match or echo_append_match:
-            # 使用一个类级别的缓存（注意线程安全，但这里是异步函数，需用 asyncio.Lock）
-            if not hasattr(self, '_echo_cache'):
-                self._echo_cache = {}
-                self._echo_lock = asyncio.Lock()
-            async with self._echo_lock:
-                if echo_single_match:
-                    file_name = echo_single_match.group(2)
-                    code_content = echo_single_match.group(1)
-                    self._echo_cache[file_name] = [code_content]
-                    result = f"准备写入: {file_name}"
-                else:  # append
-                    file_name = echo_append_match.group(2)
-                    code_content = echo_append_match.group(1)
-                    if file_name not in self._echo_cache:
-                        self._echo_cache[file_name] = []
-                    self._echo_cache[file_name].append(code_content)
-                    result = f"追加内容: {file_name}"
-
-                # 判断下一条是否还是echo（从messages中看）
-                next_is_echo = False
-                if len(messages) > 0 and isinstance(messages[-1], dict):
-                    last_content = messages[-1].get('content', '')
-                    if re.match(r"\[USE_cmd:echo", last_content):
-                        next_is_echo = True
-                if not next_is_echo:
-                    # 组装最终内容并写入
-                    code_content_fixed = '\n'.join(self._echo_cache[file_name])
-                    code_content_fixed = html.unescape(code_content_fixed)
-                    code_content_fixed = code_content_fixed.encode('utf-8').decode('unicode_escape')
-                    code_content_fixed = code_content_fixed.replace('\\n', '\n').replace('\\t', '\t')
-                    write_result = await asyncio.to_thread(self.write_code_file, file_name, code_content_fixed)
-                    return f"[USE_cmd:echo]结果：{write_result}"
-                else:
-                    # 等待下一条命令合并
-                    return result
-
-        # 普通命令执行（PowerShell）
-        try:
-            # 使用 asyncio.create_subprocess_shell 或 to_thread
-            # 这里用 to_thread 简化
-            def run_powershell(cmd):
-                result = subprocess.run(
-                    ["powershell", "-Command", cmd],
-                    capture_output=True, text=True
-                )
-                stdout = result.stdout.strip().encode('utf-8', errors='replace').decode('utf-8')
-                stderr = result.stderr.strip().encode('utf-8', errors='replace').decode('utf-8')
-                output = ""
-                if stdout:
-                    output += f"STDOUT:\n{stdout}\n"
-                if stderr:
-                    output += f"STDERR:\n{stderr}\n"
-                return output.strip() or "命令执行完成（无输出）"
-
-            cmd_output = await asyncio.to_thread(run_powershell, cmd_text)
-            return f"[USE_cmd:{cmd_text}]结果：{cmd_output}"
-        except Exception as e:
-            return f"[USE_cmd:{cmd_text}]结果：命令执行失败: {e}"
-
-    async def _handle_weather(self, location: str) -> str:
-        """处理 [Weather:] 命令"""
-        if location == "LocalWeather":
-            user_address = await asyncio.to_thread(UserIP().sendAddress)
-            self.logger.info(f"获取用户地址: {user_address}")
-            weather_info = await asyncio.to_thread(MSWeather(user_address).return_to_ai)
-        else:
-            weather_info = await asyncio.to_thread(MSWeather(location).return_to_ai)
-        return weather_info
-
-    async def _handle_skills(self, skill_input: str, messages: List[dict]) -> str:
-        """处理 [USESKILLS:] 命令"""
-        self.logger.info(f"检测到技能调用指令: {skill_input}")
-        # 假设 UESkills 是同步类
-        skill_result = await asyncio.to_thread(UESkills(skill_input).analyze_skill)
-        # 注意：原代码中处理技能后还会检查是否有插件，这里简化，但可以扩展
-        return f"[System]技能返回的结果为: {skill_result}"
-
-    # ---------- 同步包装 ----------
-    def get_ai_reply_sync_with_mcp(self, messages: List[dict], callback: Optional[Callable[[str], None]] = None) -> str:
+    def get_ai_reply_sync_with_mcp(self, messages: list) -> str:
         """同步方式获取AI回复（支持MCP）"""
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        loop = asyncio.new_event_loop() #创建一个新的事件循环
+        asyncio.set_event_loop(loop) #设置当前线程的事件循环为loop
         try:
-            return loop.run_until_complete(self.get_ai_reply_with_mcp(messages, callback))
+            return loop.run_until_complete(self.get_ai_reply_with_mcp(messages))
         finally:
             loop.close()
 
@@ -620,10 +760,10 @@ class AiAPI:
                 demo_setting = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             demo_setting = {}
-
+        
         # 只更新gif字段，保留其他配置
         demo_setting["gif"] = gif_name
-
+        
         try:
             with open("demo_setting.json", "w", encoding="utf-8") as f:
                 json.dump(demo_setting, f, ensure_ascii=False, indent=2)
@@ -633,7 +773,6 @@ class AiAPI:
 
     # ---------- 交互循环 ----------
     def chat_round(self, messages):
-        """对话循环（使用支持MCP的回复方法）"""
         try:
             while True:
                 user_input = input("\n你：").strip()
@@ -641,20 +780,8 @@ class AiAPI:
                     break
                 print("输入不能为空,请重新输入")
             messages.append({"role": "user", "content": user_input})
-            # 使用支持MCP的同步方法
-            reply = self.get_ai_reply_sync_with_mcp(messages)
+            reply = self.get_ai_reply_sync(messages)
             messages.append({"role": "assistant", "content": reply})
             print(f"\n助手：{reply}")
         except Exception as e:
             print(f"对话出错: {e}")
-
-    # 保留旧方法以防其他地方调用（但内部可重定向到新方法）
-    def get_ai_reply_stream(self, messages, callback=None):
-        """旧方法：重定向到支持MCP的同步方法"""
-        self.logger.warning("get_ai_reply_stream 已弃用，请使用 get_ai_reply_sync_with_mcp")
-        return self.get_ai_reply_sync_with_mcp(messages, callback)
-
-    def get_ai_reply_sync(self, messages):
-        """旧方法：重定向到支持MCP的同步方法"""
-        self.logger.warning("get_ai_reply_sync 已弃用，请使用 get_ai_reply_sync_with_mcp")
-        return self.get_ai_reply_sync_with_mcp(messages)
