@@ -1041,7 +1041,7 @@ class ChatWidget(QWidget):
 
     def on_ai_error(self, error_msg):
         # 移除"AI正在思考"提示
-        for i in range(5):  # 对于添加消息时的几行内容
+        for i in range(6):  # 对于添加消息时的几行内容
             self.chat_history.undo()
         
         # 显示错误信息
