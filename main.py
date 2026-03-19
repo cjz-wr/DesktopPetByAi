@@ -13,7 +13,7 @@ import json
 from datetime import datetime
 
 import AiAPI
-import zhipu as zhipu
+# 移除了对zhipu的直接导入
 import openai_api
 from settingwindow import CustomDialog,FontManager
 import logging
@@ -23,6 +23,10 @@ from lib.feeding_timer import EatingTimer, format_time
 from lib.pet_stats_manager import PetStatsManager  # 导入新的宠物状态管理模块
 import lib.LogManager as LogManager
 import logging
+
+
+from lib.pet_reminder import PetReminder
+
 # from stegano import lsb
 
 # def format_time(seconds):
@@ -43,11 +47,9 @@ class AIWorker(QThread):
 
     def run(self):
         try:
-            # 使用异步方式获取AI回复
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            reply = loop.run_until_complete(zhipu.get_ai_reply(self.messages))
-            loop.close()
+            # 使用异步方式获取AI回复，现在统一使用OpenAI兼容接口
+            ai_api = AiAPI.AiAPI()
+            reply = asyncio.run(ai_api.get_ai_reply(self.messages))
             self.finished.emit(reply)
         except Exception as e:
             self.error.emit(str(e))
@@ -194,7 +196,9 @@ class ChatDialog(QDialog):
     
     def load_conversation(self):
         """加载历史对话并显示在聊天区域"""
-        messages = zhipu.load_conversation("default")
+        # 使用AiAPI加载对话历史
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
         for msg in messages:
             if msg['role'] == 'user':
                 self.add_message("你", msg['content'], is_user=True)
@@ -238,7 +242,7 @@ class ChatDialog(QDialog):
 
     def add_system_message(self, message):
         """添加系统消息到聊天区域（便捷方法）"""
-        self.add_message("系统", message, is_user=False)
+        self.add_message("系统:", message, is_user=False)
     
     def handle_send(self):
         input_text = self.input_edit.toPlainText().strip()
@@ -250,9 +254,10 @@ class ChatDialog(QDialog):
         self.add_message("你", input_text, is_user=True)
         
         # 构建消息
-        messages = zhipu.load_conversation("default")
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
         messages.append({"role": "user", "content": input_text})
-        zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default", messages)
         
         # 禁用发送按钮，防止重复发送
         self.send_button.setEnabled(False)
@@ -274,14 +279,17 @@ class ChatDialog(QDialog):
         # 移除"AI正在思考"提示
         self.chat_history.undo()
         self.chat_history.undo()
+        self.chat_history.undo()
+        self.chat_history.undo()
         
         # 添加AI回复
         self.add_message("ICAT", reply, is_user=False)
         
         # 保存对话
-        messages = zhipu.load_conversation("default")
+        ai_api = AiAPI.AiAPI()
+        messages = ai_api.load_conversation("default")
         messages.append({"role": "assistant", "content": reply})
-        zhipu.save_conversation("default", messages)
+        ai_api.save_conversation("default", messages)
 
         # 重新启用发送按钮
         self.send_button.setEnabled(True)
@@ -326,6 +334,10 @@ class DesktopPet(QMainWindow):
         #初始化日志
         LogManager.init_logging() # 初始化日志
         self.logger = logging.getLogger(__name__)
+
+
+
+        
 
 
         self.init_ui()
@@ -377,6 +389,11 @@ class DesktopPet(QMainWindow):
         # 初始化系统托盘图标
         self.init_tray_icon()
 
+        # 初始化宠物提醒系统
+        self.pet_reminder = PetReminder()
+        # 不要在这里直接调用异步函数，而是在适当的时机启动
+        # self.pet_reminder.remindtalk(self)  # 错误的做法
+        
         # 以下方法已移至 lib.pet_stats_manager.PetStatsManager
 
     def reduce_pet_stats(self):
@@ -458,10 +475,11 @@ class DesktopPet(QMainWindow):
         try:
             with open("demo_setting.json", "r", encoding="utf-8") as f:
                 setting = json.load(f)
-            gif_name = setting.get("gif", "2.gif") # 获取GIF文件名，默认"2.gif"
+            gif_name = setting.get("gif", "闭眼.gif") # 获取GIF文件名，默认"闭眼.gif"
+            gif_name = gif_name.strip()  # 去除可能的空白字符
             
             # 使用配置中的GIF文件夹路径，如果未配置则使用默认值
-            gif_folder = setting.get("gif_folder", "gif/蜡笔小新组")
+            gif_folder = setting.get("gif_folder", "gif/猫")
             
             gif_path = gif_name
             # 如果不是绝对路径，则加上配置中的目录
@@ -469,12 +487,12 @@ class DesktopPet(QMainWindow):
                 gif_path = f"{gif_folder}/{gif_name}"
         except Exception as e:
             self.logger.error(f"读取demo_setting.json失败: {e}")
-            gif_path = "gif/2.gif"
+            gif_path = "gif/猫/闭眼.gif"
         
         # 检查GIF文件是否存在
         if not os.path.exists(gif_path):
             self.logger.warning(f"GIF文件不存在: {gif_path}，使用默认GIF")
-            gif_path = "gif/2.gif"
+            gif_path = "gif/猫/闭眼.gif"
         
         try:
             self.movie = QMovie(gif_path)
@@ -485,7 +503,7 @@ class DesktopPet(QMainWindow):
             else:
                 self.logger.warning(f"无法加载GIF文件: {gif_path}")
                 # 尝试使用默认路径
-                default_gif_path = "gif/2.gif"
+                default_gif_path = "gif/猫/闭眼.gif"
                 if os.path.exists(default_gif_path):
                     self.movie = QMovie(default_gif_path)
                     if self.movie.isValid():
@@ -533,7 +551,7 @@ class DesktopPet(QMainWindow):
     def grab_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "蜡笔小新组")
+            dir_name = setting.get("gif_folder", "gif/猫")
         if "站起.gif" in os.listdir(f"{dir_name}"):
             self.movie = QMovie(f"{dir_name}/站起.gif")
             self.label.setMovie(self.movie)
@@ -543,7 +561,7 @@ class DesktopPet(QMainWindow):
     def eat_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "蜡笔小新组")
+            dir_name = setting.get("gif_folder", "gif/猫")
         if "吃东西.gif" in os.listdir(f"{dir_name}"):
             # 更新设置中的GIF值
             setting["gif"] = "吃东西.gif"
@@ -559,7 +577,7 @@ class DesktopPet(QMainWindow):
     def over_eat_pet(self):
         with open("demo_setting.json", "r", encoding="utf-8") as f:
             setting = json.load(f)
-            dir_name = setting.get("gif_folder", "蜡笔小新组")
+            dir_name = setting.get("gif_folder", "gif/猫")
         if "闭眼.gif" in os.listdir(f"{dir_name}"):
             # 更新设置中的GIF值
             setting["gif"] = "闭眼.gif"
@@ -834,9 +852,9 @@ class DesktopPet(QMainWindow):
 
         menu.addSeparator()  # 添加分隔符
 
-        setting_action = QAction('⚙️ 设置', self)
+        setting_action = QAction('⚙️ 更多', self)
         setting_action.triggered.connect(self.show_setting_windows)
-        menu.addAction(setting_action)  # 添加设置菜单项
+        menu.addAction(setting_action)  # 添加更多菜单项
 
         # chat_action = QAction('💬 打开聊天', self)
         # chat_action.triggered.connect(self.open_chat_dialog)
@@ -899,6 +917,25 @@ class DesktopPet(QMainWindow):
             self.chat_dialog.setModal(False)
             self.chat_dialog.show()
 
+    def showEvent(self, event):
+        """窗口显示事件"""
+        super().showEvent(event)
+        # 窗口显示后启动提醒任务
+        if not hasattr(self, '_reminder_started'):
+            self._reminder_started = True
+            
+            # 启动宠物说话提醒（使用Qt定时器方式）
+            self.pet_reminder.start_talk_reminder(self, 10*60)  # 每10分钟提醒一次
+            self.pet_reminder.start_eat_reminder(self, 3*60) #每3分钟检查一次
+            self.logger.info("宠物提醒任务已启动")
+
+    def closeEvent(self, event):
+        """窗口关闭事件 - 停止提醒任务"""
+        # 停止提醒任务
+        if hasattr(self, 'pet_reminder'):
+            self.pet_reminder.stop_talk_reminder()
+            self.pet_reminder.stop_eat_reminder()
+        super().closeEvent(event)
 
     def save_eating_progress(self, progress_data):
         """保存进食进度到配置文件"""

@@ -304,8 +304,8 @@ class RecipePopup(QWidget):
         """重写show方法，添加定时器逻辑"""
         if not self.isVisible():  # 只有在不可见时才显示
             super().show()
-            # 启动定时器，2秒后自动隐藏
-            self.auto_hide_timer.start(2000)
+            # 启动定时器，1秒后自动隐藏
+            self.auto_hide_timer.start(1000)
         
     def enterEvent(self, event):
         """鼠标进入窗口时停止定时器"""

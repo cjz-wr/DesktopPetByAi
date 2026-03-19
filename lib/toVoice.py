@@ -46,7 +46,7 @@ class TextToSpeech:
 
         # 尝试导入playsound，如果未安装则提示用户
         try:
-            from playsound import playsound
+            from playsound3 import playsound
             self.playsound = playsound
         except ImportError:
             self.logger.warning("警告：未找到 playsound 库，将只生成文件而不播放")

@@ -125,6 +125,8 @@ def main():
     """主函数，用于演示两种生成模式。"""
     # === 重要：请在此处配置你的API Key ===
     # 安全提示：最佳实践是将API Key设置为系统环境变量，例如 `ZHIPUAI_API_KEY`
+
+    #key已经失效，请自行申请替换
     YOUR_API_KEY = os.getenv("a805cdc6d6e848d4a180360daa037a3a.yueKhq5poWrpZw9a", "a805cdc6d6e848d4a180360daa037a3a.yueKhq5poWrpZw9a")  # 请替换
     
     # if YOUR_API_KEY == "a805cdc6d6e848d4a180360daa037a3a.yueKhq5poWrpZw9a":

@@ -1,4 +1,7 @@
 demo_setting.json
+mcp_config.json
+openai_mcp.py
+DesktopPetByAiInstall.iss
 
 traningai/
 dist/
@@ -8,4 +11,6 @@ webnew/
 Output/
 ai_memory/
 logs/
-
+.vscode/
+.idea/
+.git/

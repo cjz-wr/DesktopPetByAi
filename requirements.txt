@@ -1,10 +1,12 @@
 PyQt6>=6.4.0
-zhipuai>=2.0.0
+# 已移除zhipuai依赖，现在只使用OpenAI兼容接口
 edge-tts>=6.1.0
-playsound
+playsound3
 pygame>=2.1.0
 requests>=2.28.0
 openai>=1.0.0
 Pillow>=9.0.0
 stegano
 pyyaml
+colorlog>=6.7.0
+geocoder
